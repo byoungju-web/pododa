@@ -1834,6 +1834,7 @@ function storeOwnerQR(s){
 }
 function renderStore(slug){
   var s = findStore(slug);
+  if(s && pdApiOn()) pdSyncStock(s.slug).then(function(ch){ if(ch && location.hash.indexOf("/cafe/")>=0) renderStore(slug); });
   if(!s){ $("#view").innerHTML='<div class="empty"><div class="ee">🤔</div>가게를 찾을 수 없어요</div>'; return; }
   var closed = !storeOpen(s);
   var listed = s.menus.filter(isListed);
@@ -2884,8 +2885,8 @@ function renderTagSug(list){
    - 값을 채우면 같은 코드가 서버(Cloudflare Worker) 모드로 전환됩니다.
    ══════════════════════════════════════════════════════════════ */
 var PD_CFG = {
-  API_BASE: "",                              /* 예) "https://api.pododa.kr" — 비우면 로컬 전용 */
-  VAPID_PUBLIC_KEY: "",                      /* 서버에서 발급한 VAPID 공개키 */
+  API_BASE: "https://pododa-api.hasin7jk.workers.dev",   /* 서버 연결됨 — 비우면 로컬 전용 모드로 되돌아갑니다 */
+  VAPID_PUBLIC_KEY: "BBTOhV6pdGf23SB1cSyfGhDl5cDUiUvCgHWftGhLM-Vc3ASoj7BFocZsYZTVQ83SrKvL5kQfmhRAtc7PzEamPNQ",   /* 웹푸시 공개키 (개인키는 서버 시크릿에만 보관) */
   APP_ORIGIN: "https://pododa.kr",           /* 정식 서비스 주소 */
   APP_ORIGINS: ["https://pododa.kr","https://www.pododa.kr","https://pododa.pages.dev"],  /* 키를 받을 수 있는 주소들 */
   BRIDGE_ORIGIN: "https://podoya.ai.kr",     /* 포도야 키를 읽어올 수 있는 기존 배포 위치 */
@@ -3290,6 +3291,8 @@ function setOrderStatus(no, to, opt){
   if(!hit.statusLog) hit.statusLog=[{status:from, at:hit.ts||Date.now()}];
   hit.statusLog.push({status:to, at:Date.now(), auto:!!(opt&&opt.auto)});
   saveOrders(os);
+  if(pdApiOn()){ var _sl=(hit.items&&hit.items[0]&&hit.items[0].slug)||pdOwnerSlug();
+    if(_sl) pdFetch("/orders/status",{method:"POST",body:{slug:_sl,no:no,to:to,by:(opt&&opt.by)||"buyer"}}); }
   return true;
 }
 function autoConfirmOrders(){ var now=Date.now(), targets=[];
@@ -4365,11 +4368,26 @@ function renderOwnerAuth(slug){
   setActiveTab("#/admin");
   var f=$(first?"#pin-new":"#pin-in"); if(f) setTimeout(function(){ try{ f.focus(); }catch(e){} },80);
 }
+/* 서버 모드면 서버에 등록하고 토큰을 받습니다. 실패하면 로컬로 진행합니다. */
+function ownerPinSetRemote(slug, pin, cb){
+  if(!pdApiOn()){ cb(null); return; }
+  pdFetch("/owner/register",{method:"POST",body:{slug:slug,pin:pin}}).then(function(r){
+    if(r.ok&&r.data&&r.data.ok){ cb({token:r.data.token, recovery:r.data.recovery}); return; }
+    if(r.status===409){ toast("서버에 이미 등록된 가게예요. PIN으로 로그인해주세요"); cb("exists"); return; }
+    cb(null);
+  });
+}
 function ownerPinSet(slug){
   var a=(($("#pin-new")||{}).value||""), b=(($("#pin-new2")||{}).value||"");
   if(a!==b){ toast("두 PIN이 서로 달라요"); return; }
   var r=pdSetPin(slug, a);
   if(!r.ok){ toast(r.msg); return; }
+  ownerPinSetRemote(slug, a, function(res){
+    if(res==="exists"){ renderOwnerAuth(slug); return; }
+    pdLogin(slug, res&&res.token);
+    if(res&&res.recovery) alert("서버 복구코드: "+res.recovery+"\n\n다른 기기에서도 이 PIN으로 들어올 수 있어요.");
+    pdSeenMark(); pdPushSubscribe();
+  });
   pdLogin(slug);
   var ow=ownedSlugs(); if(ow.indexOf(slug)<0){ ow.push(slug); saveOwned(ow); }
   alert("복구코드: "+r.recovery+"\n\n반드시 적어두세요. 이 코드로만 PIN을 되돌릴 수 있습니다.");
@@ -4381,6 +4399,23 @@ function ownerPinSubmit(slug){
   var now=Date.now(), f=_pinFail[slug]||{n:0,until:0};
   if(f.until>now){ toast("잠시 후 다시 시도해주세요 ("+Math.ceil((f.until-now)/1000)+"초)"); return; }
   var pin=(($("#pin-in")||{}).value||"");
+  if(pdApiOn()){
+    pdFetch("/owner/login",{method:"POST",body:{slug:slug,pin:pin}}).then(function(r){
+      if(r.ok&&r.data&&r.data.ok){
+        _pinFail[slug]={n:0,until:0};
+        if(!pdHasPin(slug)) pdSetPin(slug,pin);        /* 이 기기에도 저장 */
+        pdLogin(slug, r.data.token);
+        toast("로그인했어요"); pdSeenMark(); pdPushSubscribe();
+        pdSyncStock(slug); var _st=findStore(slug); if(_st) pdSyncOrders(_st);
+        renderAdmin(); return;
+      }
+      if(r.status===404){ toast("서버에 등록되지 않은 가게예요. PIN을 새로 설정해주세요"); return; }
+      if(r.status===429){ toast("잠시 후 다시 시도해주세요"); return; }
+      toast("PIN이 맞지 않아요");
+      var el2=$("#pin-in"); if(el2){ el2.value=""; el2.focus(); }
+    });
+    return;
+  }
   if(pdCheckPin(slug, pin)){
     _pinFail[slug]={n:0,until:0};
     pdLogin(slug);
@@ -5901,7 +5936,19 @@ document.addEventListener("click", function(e){
     var _now=Date.now();
     var o=orders(); o.push({no:ordNo, kind:pk, items:arr, total:tot, ts:_now, status:"pending", statusLog:[{status:"pending", at:_now}], pinfo:(pinfo||null), payWho:(pk==="shop"?"판매자":"사장님"), store:((arr[0]&&arr[0].store)||"")}); saveOrders(o);
     invApply(arr, -1);   /* 재고 차감 */
-    try{ var _newOd=orders()[orders().length-1]; pdOnNewOrder(_newOd); if(pdApiOn()) pdCreateOrderRemote(_newOd); }catch(_e){}
+    try{ var _newOd=orders()[orders().length-1]; pdOnNewOrder(_newOd);
+      if(pdApiOn()) pdCreateOrderRemote(_newOd).then(function(r){
+        if(r && r.status===409){
+          /* 다른 기기가 먼저 가져갔다 → 로컬 주문·재고를 되돌립니다 */
+          var sh=(r.data&&r.data.short)||{};
+          invApply(_newOd.items, +1);
+          saveOrders(orders().filter(function(o){ return o.no!==_newOd.no; }));
+          alert("방금 다른 주문이 먼저 처리돼 재고가 부족해졌어요"+(sh.left!==undefined?(" (남은 "+sh.left+"개)"):"")+".\n주문이 취소되었습니다.");
+          var _sl=(_newOd.items&&_newOd.items[0]&&_newOd.items[0].slug); if(_sl) pdSyncStock(_sl);
+          try{ location.hash="#/cart"; }catch(_e2){}
+        }
+      });
+    }catch(_e){}
     saveCartByKind(pk,[]);
     var sbp=$(".sheet-bg"); if(sbp) sbp.remove();
     var bg=document.createElement("div"); bg.className="sheet-bg"; bg.setAttribute("data-action","close-sheet");
@@ -5987,7 +6034,9 @@ document.addEventListener("click", function(e){
     var cur=null; var _s=findStore(sg); if(_s){ for(var _i=0;_i<_s.menus.length;_i++) if(_s.menus[_i].id===mid) cur=_s.menus[_i]; }
     var v=prompt("재고 수량 (비우면 무제한)", (cur&&typeof cur.stock==="number")?String(cur.stock):"");
     if(v===null) return;
-    updateMenu(sg, mid, function(m){ if(String(v).trim()===""){ delete m.stock; } else { m.stock=Math.max(0,parseInt(v,10)||0); if(m.stock===0) m.soldout=true; } });
+    var _sv=(String(v).trim()==="")?null:Math.max(0,parseInt(v,10)||0);
+    updateMenu(sg, mid, function(m){ if(_sv===null){ delete m.stock; } else { m.stock=_sv; if(m.stock===0) m.soldout=true; } });
+    if(pdApiOn()) pdFetch("/stock/set",{method:"POST",body:{slug:sg,itemId:mid,stock:_sv}});
     toast("재고를 저장했어요"); renderAdmin(); return; }
   if(a==="toggle-pause"){ updateStore(el.getAttribute("data-slug"), function(s){ s.paused=!s.paused; }); toast("영업 상태를 변경했어요"); renderAdmin(); return; }
 
