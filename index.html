@@ -2981,6 +2981,10 @@ function pdLogin(slug, token){
 function pdLogout(){ DB.set("fl_owner_sess",""); DB.set("fl_owner",""); }
 /* 현재 사장님으로 인증된 slug (세션 없으면 null) */
 function pdOwnerSlug(){ var s=pdSession(); return s?s.slug:null; }
+/* 서버 모드인데 토큰이 없다면 = 서버 연결 전에 로그인한 오래된 세션입니다.
+   이 상태로는 서버가 사장님을 알아보지 못하므로 다시 로그인해야 합니다. */
+function pdNeedRelogin(){ var s=pdSession(); return !!(pdApiOn() && s && !s.token); }
+function pdToken(){ var s=pdSession(); return (s&&s.token)||""; }
 
 /* ── 주문 알림 ───────────────────────────────────────────────
    1) 앱이 열려 있을 때: Notification API + 배지
@@ -3047,18 +3051,33 @@ function pdB64ToU8(b64){
   return arr;
 }
 function pdPushSubscribe(){
-  if(!pdApiOn() || !PD_CFG.VAPID_PUBLIC_KEY) return;              /* 서버 없으면 조용히 통과 */
-  if(!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-  navigator.serviceWorker.register("sw.js").then(function(reg){
+  if(!pdApiOn()) return Promise.resolve({ok:false, why:"서버가 연결되어 있지 않아요"});
+  if(!PD_CFG.VAPID_PUBLIC_KEY) return Promise.resolve({ok:false, why:"푸시 공개키가 설정되지 않았어요"});
+  if(!("serviceWorker" in navigator)) return Promise.resolve({ok:false, why:"이 브라우저는 서비스워커를 지원하지 않아요"});
+  if(!("PushManager" in window)) return Promise.resolve({ok:false, why:"이 브라우저는 푸시를 지원하지 않아요"});
+  if(pdNotiPerm()!=="granted") return Promise.resolve({ok:false, why:"알림 권한이 아직 허용되지 않았어요"});
+  if(!pdToken()) return Promise.resolve({ok:false, why:"서버 로그인이 필요해요 (로그아웃 후 PIN으로 다시 로그인)"});
+
+  return navigator.serviceWorker.register("sw.js").then(function(reg){
+    return (navigator.serviceWorker.ready||Promise.resolve(reg)).then(function(){ return reg; });
+  }).then(function(reg){
     return reg.pushManager.getSubscription().then(function(sub){
       if(sub) return sub;
       return reg.pushManager.subscribe({ userVisibleOnly:true,
         applicationServerKey: pdB64ToU8(PD_CFG.VAPID_PUBLIC_KEY) });
     });
   }).then(function(sub){
-    var slug=pdOwnerSlug(); if(!slug||!sub) return;
-    return pdFetch("/push/subscribe", {method:"POST", body:{slug:slug, sub:sub.toJSON?sub.toJSON():sub}});
-  }).catch(function(e){ /* 실패해도 앱 동작에는 영향 없음 */ });
+    var slug=pdOwnerSlug();
+    if(!slug) return {ok:false, why:"로그인 정보가 없어요"};
+    if(!sub) return {ok:false, why:"구독을 만들지 못했어요"};
+    return pdFetch("/push/subscribe", {method:"POST", body:{slug:slug, sub:sub.toJSON?sub.toJSON():sub}})
+      .then(function(r){
+        if(r&&r.ok) return {ok:true};
+        return {ok:false, why:"서버 등록 실패: "+((r&&r.data&&r.data.error)||("HTTP "+((r&&r.status)||"?")))};
+      });
+  }).catch(function(e){
+    return {ok:false, why:"서비스워커 오류: "+(e&&e.message?e.message:String(e))};
+  });
 }
 
 /* ── 서버 연동 (Cloudflare Worker) ────────────────────────── */
@@ -4258,6 +4277,13 @@ function renderNewStore(){
 function notiDismissed(){ return DB.get("fl_noti_ask")==="later"; }
 function notiBanner(st){
   var perm = pdNotiPerm();
+  if(pdNeedRelogin()){
+    return '<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:14px;padding:13px 14px;margin-bottom:12px">'+
+      '<div style="font-size:13.5px;font-weight:800;color:#C2410C">🔑 서버 로그인이 필요해요</div>'+
+      '<div style="font-size:12px;color:var(--sub);line-height:1.6;margin-top:5px">서버를 연결하기 전에 만든 로그인 정보예요. 다시 로그인해야 알림과 기기 간 공유가 동작합니다.</div>'+
+      '<button data-action="owner-logout" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:11px;background:#EA580C;color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">로그아웃하고 다시 로그인</button>'+
+    '</div>';
+  }
   if(perm==="unsupported") return "";
 
   if(perm==="granted"){
@@ -4319,7 +4345,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:flex-end;margin:-4px 0 8px"><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-10 v6 · 서버연결</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -6027,12 +6053,20 @@ document.addEventListener("click", function(e){
   if(a==="noti-later"){ DB.set("fl_noti_ask","later"); toast("나중에 상단 띠에서 켜실 수 있어요"); renderAdmin(); return; }
   if(a==="noti-test"){
     var _ts=el.getAttribute("data-slug");
-    if(pdApiOn()){
-      pdFetch("/push/test",{method:"POST",body:{slug:_ts}}).then(function(r){
-        toast(r&&r.ok?"테스트 알림을 보냈어요 · 잠시만요":"보내지 못했어요 (서버 확인 필요)"); });
-    } else {
+    if(!pdApiOn()){
       pdNotify("🔔 테스트 알림","이렇게 알려드릴게요","test") ? toast("알림을 보냈어요") : toast("알림 권한을 확인해주세요");
-    }
+      return; }
+    toast("확인 중…");
+    pdPushSubscribe().then(function(sr){
+      if(!sr.ok){ alert("알림을 보낼 수 없어요\n\n원인: "+sr.why); return; }
+      return pdFetch("/push/test",{method:"POST",body:{slug:_ts}}).then(function(r){
+        if(r&&r.ok){ toast("테스트 알림을 보냈어요 · 잠시만요"); return; }
+        var msg=(r&&r.data&&r.data.error)||(r&&r.error)||("HTTP "+((r&&r.status)||"?"));
+        if(r&&r.status===401){
+          alert("서버가 사장님을 알아보지 못했어요.\n\n로그아웃 후 PIN으로 다시 로그인해주세요.\n(서버 연결 전에 만든 로그인 정보라 그렇습니다)");
+        } else { alert("알림을 보내지 못했어요\n\n서버 응답: "+msg); }
+      });
+    });
     return; }
   if(a==="key-bridge"){ pdBridgeRequest(); return; }
   if(a==="new-store"){ renderNewStore(); return; }
