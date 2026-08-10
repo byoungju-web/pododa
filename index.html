@@ -1063,6 +1063,14 @@ img{display:block;max-width:100%}
 .linkhide{display:none !important}
 .urlcard{display:none !important}
 .gen-url{display:none !important}
+/* 로그인한 사장님이 '자기 가게' 메뉴를 볼 때만 공개 링크·QR 카드를 보여줍니다. */
+.urlcard.owner-only{display:block !important;background:#F7F3FF;border:1.5px solid #E2D6FA;border-radius:14px;padding:12px 13px;margin-top:14px}
+.urlcard.owner-only .linkhide{display:block !important}
+.urlcard.owner-only .acts{display:flex;gap:8px;margin-top:10px}
+.urlcard.owner-only .acts .btn-line{display:inline-block !important;flex:1}
+.urlcard.owner-only .t{font-size:12px;font-weight:800;color:#6D28D9}
+.urlcard.owner-only .u{font-size:11.5px;color:var(--sub);word-break:break-all;margin-top:5px}
+.owner-badge{display:inline-block;font-size:10px;font-weight:800;background:#6D28D9;color:#fff;border-radius:20px;padding:2px 8px;margin-left:6px}
 
 /* ===== 포도톡 (PodoTalk) — 연한 포도색 ===== */
 :root{ --tk-bg:#F3EDFC; --tk-soft:#EADFFB; --tk-line:#E3D6F6; --tk-me:#DCCBF7; --tk-them:#FFFFFF; --tk-grape:#7C3AED; --tk-grape-d:#6D28D9; --tk-sub:#8B7BAE; }
@@ -1809,6 +1817,21 @@ function attachStoreSearch(){
 }
 
 /* ====================================================== STORE */
+/* 가게 전체 공개 URL + QR — 로그인한 사장님 본인에게만 보입니다. */
+function storeOwnerQR(s){
+  if(!pdIsMyStore(s)) return "";
+  var url = HOST + "/cafe/" + s.slug;
+  return '<div class="urlcard owner-only">'+
+      '<div class="t linkhide">🔗 우리 가게 공개 주문 링크<span class="owner-badge">사장님만 보임</span></div>'+
+      '<div class="u linkhide">'+escapeHtml(url)+'</div>'+
+      '<div class="acts">'+
+        '<button class="btn-line linkhide" data-action="copy-url" data-url="'+escapeHtml(url)+'">링크 복사</button>'+
+        '<button class="btn-line" data-action="show-qr" data-url="'+escapeHtml(url)+'" data-name="'+escapeHtml(s.name)+'">📱 QR 코드</button>'+
+      '</div>'+
+      '<div style="font-size:10.5px;color:var(--sub);margin-top:8px;line-height:1.5">QR을 출력해 매장에 붙이면 손님이 찍어서 바로 주문합니다.</div>'+
+    '</div>'+
+    '<div id="qrbox"></div>';
+}
 function renderStore(slug){
   var s = findStore(slug);
   if(!s){ $("#view").innerHTML='<div class="empty"><div class="ee">🤔</div>가게를 찾을 수 없어요</div>'; return; }
@@ -1833,6 +1856,7 @@ function renderStore(slug){
       '<div class="chips"><span class="chip">'+(closed?'⛔ 영업 종료':'⏱ 예상 15분')+'</span><span class="chip">🔗 공개 메뉴 '+listed.length+'개</span></div></div>'+
     (closed?'<div class="sold-banner">😴 현재 휴무 중입니다 — 지금은 주문할 수 없어요</div>':'')+
     '<div class="sec-t">메뉴 — 각 항목이 고유 주문 링크</div>'+menus+
+    storeOwnerQR(s)+
     reviewSection(s);
   window._revRating=5;
 }
@@ -1888,7 +1912,7 @@ function renderOrder(storeKey, menuKey){
     optRow("사이즈", m.sizes, "size")+
     '<div class="optblock"><div class="ot">수량</div><div class="qty">'+
       '<button data-action="qty" data-d="-1">−</button><span id="qv">1</span><button data-action="qty" data-d="1">+</button></div></div>'+
-    '<div class="urlcard"><div class="t linkhide">🔗 이 메뉴의 공개 주문 링크 · '+visLabel(vis(m))+'</div>'+
+    '<div class="urlcard'+(pdIsMyStore(s)?' owner-only':'')+'"><div class="t linkhide">🔗 이 메뉴의 공개 주문 링크 · '+visLabel(vis(m))+'<span class="owner-badge">사장님만 보임</span></div>'+
       '<div class="u linkhide">'+url+'</div>'+
       '<div class="acts"><button class="btn-line linkhide" data-action="copy-url" data-url="'+url+'">링크 복사</button>'+
       '<button class="btn-line" data-action="show-qr" data-url="'+url+'" data-name="'+escapeHtml(m.name)+'">📱 QR 코드</button></div></div>'+
@@ -3373,6 +3397,10 @@ function openCheckout(kind){
 /* 포도야 키 연동 안내 — 지금 오리진이 포도야와 같은지에 따라 문구가 달라집니다.
    같은 오리진: localStorage를 그대로 읽으므로 자동 연동
    다른 오리진(pododa.kr 등): 자동 연동 불가 → 브리지 버튼 제공 */
+/* 지금 로그인한 사장님이 이 가게의 주인인가 */
+function pdIsMyStore(st){
+  try{ var me=pdOwnerSlug(); return !!(me && st && me===st.slug); }catch(e){ return false; }
+}
 function pdSameOriginAsPodoya(){
   try{ return location.host === new URL(PD_CFG.BRIDGE_ORIGIN).host; }catch(e){ return false; }
 }
@@ -4548,10 +4576,12 @@ function showQR(url, name){
     cap.style.cssText="text-align:center;font-size:11px;color:var(--sub);margin-top:8px;width:100%";
     cap.textContent=(name?name+" · ":"")+"매장 테이블에 붙이면 바로 주문";
     box.appendChild(cap);
-    box.scrollIntoView({behavior:"smooth",block:"center"});
   }catch(e){
-    box.innerHTML='<div class="tip">QR 라이브러리를 불러오지 못했어요 (오프라인). 배포 후 정상 표시됩니다.</div>';
+    box.innerHTML='<div class="tip">QR을 만들지 못했어요. 새로고침 후 다시 시도해주세요.</div>';
+    return;
   }
+  /* 스크롤 이동은 부가 기능 — 실패해도 이미 만든 QR을 지우지 않습니다. */
+  try{ if(box.scrollIntoView) box.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){}
 }
 
 /* ====================================================== 포도톡 (PodoTalk) */
