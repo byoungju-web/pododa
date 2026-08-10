@@ -4252,6 +4252,53 @@ function renderNewStore(){
     '</div>';
   setActiveTab("#/admin");
 }
+/* ── 새 주문 알림 배너 ─────────────────────────────────────
+   사장님이 관리자 화면에 들어오면 가장 먼저 보이는 자리입니다.
+   묻지 않으면 알림을 켤 방법을 못 찾으므로, 로그인 직후 여기서 바로 안내합니다. */
+function notiDismissed(){ return DB.get("fl_noti_ask")==="later"; }
+function notiBanner(st){
+  var perm = pdNotiPerm();
+  if(perm==="unsupported") return "";
+
+  if(perm==="granted"){
+    return '<div style="background:#EAF7F0;border:1.5px solid #B7E4CD;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+      '<div style="flex:1;min-width:150px">'+
+        '<div style="font-size:13.5px;font-weight:800;color:#0a7a53">🔔 새 주문 알림 켜짐</div>'+
+        '<div style="font-size:11.5px;color:var(--sub);margin-top:2px">'+
+          (pdApiOn()?'앱을 닫아도 주문이 들어오면 알려드려요.':'앱이 열려 있는 동안 알려드려요.')+'</div>'+
+      '</div>'+
+      '<button data-action="noti-test" data-slug="'+escapeHtml(st.slug)+'" style="padding:9px 14px;border:1px solid #B7E4CD;border-radius:10px;background:#fff;color:#0a7a53;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit">테스트 알림</button>'+
+    '</div>';
+  }
+
+  if(perm==="denied"){
+    return '<div style="background:#FFF3F5;border:1.5px solid #F5C6D0;border-radius:14px;padding:13px 14px;margin-bottom:12px">'+
+      '<div style="font-size:13.5px;font-weight:800;color:#C0476B">🔕 알림이 차단돼 있어요</div>'+
+      '<div style="font-size:12px;color:var(--sub);line-height:1.6;margin-top:5px">'+
+        '주문이 들어와도 모를 수 있어요. 브라우저에서 직접 풀어주셔야 합니다.<br>'+
+        '<b>주소창 왼쪽 자물쇠 🔒 → 권한 → 알림 → 허용</b> → 새로고침</div>'+
+    '</div>';
+  }
+
+  /* 아직 안 물어봤거나 "나중에"를 누른 경우 */
+  if(notiDismissed()){
+    return '<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:10px 13px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'+
+      '<div style="flex:1;font-size:12.5px;font-weight:700;color:#C2410C">🔕 알림 꺼짐 · 주문이 와도 모를 수 있어요</div>'+
+      '<button data-action="noti-ask" style="padding:8px 14px;border:none;border-radius:9px;background:#EA580C;color:#fff;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit">켜기</button>'+
+    '</div>';
+  }
+  return '<div style="background:linear-gradient(135deg,#F3EDFF,#EAE0FF);border:1.5px solid #D6C6FA;border-radius:16px;padding:16px;margin-bottom:14px">'+
+    '<div style="font-size:16px;font-weight:900;color:#4C1D95">🔔 새 주문 알림을 받으시겠어요?</div>'+
+    '<div style="font-size:12.5px;color:#5B4B7A;line-height:1.65;margin-top:6px">'+
+      (pdApiOn()
+        ? '켜두면 <b>앱을 닫아두어도</b> 주문이 들어올 때 폰으로 바로 알려드려요.'
+        : '켜두면 앱이 열려 있는 동안 주문이 들어올 때 알려드려요.')+'</div>'+
+    '<div style="display:flex;gap:8px;margin-top:12px">'+
+      '<button data-action="noti-ask" style="flex:2;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#6D28D9,#4C1D95);color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit">알림 켜기</button>'+
+      '<button data-action="noti-later" style="flex:1;padding:13px;border:1px solid #D6C6FA;border-radius:12px;background:#fff;color:var(--sub);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">나중에</button>'+
+    '</div>'+
+  '</div>';
+}
 function renderAdmin(){
   var logged = pdOwnerSlug();
   if(!logged){ return renderAdminLogin(); }
@@ -4269,6 +4316,7 @@ function renderAdmin(){
   $("#view").innerHTML =
     '<div class="hd"><div class="eyebrow">사장님 관리자</div><h1>'+s.emoji+' '+escapeHtml(s.name)+'</h1>'+
       '<p>'+escapeHtml(s.area)+' · 메뉴를 등록하면 공개 URL과 QR이 자동 생성됩니다.</p></div>'+
+    notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
     '<div style="display:flex;justify-content:flex-end;margin:-4px 0 8px"><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
@@ -4320,8 +4368,8 @@ function renderAdminOrders(st){
   }
   $("#adminBody").innerHTML = back+
     '<div class="tip" style="margin-bottom:12px">🧾 <b>사장님 주문 관리</b> — 준비/배송 시작은 여기서, 구매확정은 구매자가 합니다.</div>'+
-    (pdNotiPerm()==='granted' ? '<div class="tip" style="margin-bottom:12px">🔔 새 주문 알림이 켜져 있어요'+(pdApiOn()?'':' (앱이 열려 있는 동안만 동작 · 서버 연결 시 백그라운드 푸시)')+'</div>'
-      : (pdNotiPerm()==='unsupported' ? '' : '<button data-action="noti-ask" style="width:100%;margin-bottom:12px;padding:12px;border:none;border-radius:11px;background:var(--grape-soft);color:var(--grape);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">🔔 새 주문 알림 켜기</button>'))+
+    /* 알림 안내는 관리자 화면 최상단 배너로 통합됨 */
+
     (live.length?'<div class="sec-t">처리 대기 ('+live.length+')</div>'+live.map(card).join(""):'')+
     (done.length?'<div class="sec-t" style="margin-top:14px">지난 주문 ('+done.length+')</div>'+done.map(card).join(""):'');
   pdSeenMark(); pdPaintBadge();
@@ -5975,7 +6023,17 @@ document.addEventListener("click", function(e){
   if(a==="owner-recover"){ ownerRecover(el.getAttribute("data-slug")); return; }
   if(a==="owner-logout"){ pdLogout(); toast("로그아웃했어요"); renderAdminLogin(); return; }
   if(a==="owner-back"){ renderAdminLogin(); return; }
-  if(a==="noti-ask"){ pdNotiAsk(function(){ renderAdmin(); }); return; }
+  if(a==="noti-ask"){ DB.set("fl_noti_ask",""); pdNotiAsk(function(){ renderAdmin(); }); return; }
+  if(a==="noti-later"){ DB.set("fl_noti_ask","later"); toast("나중에 상단 띠에서 켜실 수 있어요"); renderAdmin(); return; }
+  if(a==="noti-test"){
+    var _ts=el.getAttribute("data-slug");
+    if(pdApiOn()){
+      pdFetch("/push/test",{method:"POST",body:{slug:_ts}}).then(function(r){
+        toast(r&&r.ok?"테스트 알림을 보냈어요 · 잠시만요":"보내지 못했어요 (서버 확인 필요)"); });
+    } else {
+      pdNotify("🔔 테스트 알림","이렇게 알려드릴게요","test") ? toast("알림을 보냈어요") : toast("알림 권한을 확인해주세요");
+    }
+    return; }
   if(a==="key-bridge"){ pdBridgeRequest(); return; }
   if(a==="new-store"){ renderNewStore(); return; }
   if(a==="go-admin"){ DB.set("fl_admin_tab","add"); if(location.hash!=="#/admin"){ location.hash="#/admin"; } else { renderAdmin(); } return; }
