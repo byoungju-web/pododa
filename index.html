@@ -1433,9 +1433,10 @@ function sanStore(key,val){
   if(String(key).indexOf("fl_key")===0) return val; /* API 키는 원본 유지 */
   try{ var o=JSON.parse(val); return JSON.stringify(sanDeep(o,0)); }catch(e){ return val; }
 }
+var _pdWiped = false;   /* 탈퇴 직후 — 뒤늦게 도착한 응답이 데이터를 되살리지 못하게 막습니다 */
 var DB = {
   get:function(k){ var kk=DBK(k); try{ return localStorage.getItem(kk); }catch(e){ return (kk in mem)?mem[kk]:null; } },
-  set:function(k,v){ var kk=DBK(k); try{ v=sanStore(k,v); }catch(e){} try{ localStorage.setItem(kk,v); }catch(e){ mem[kk]=v; } }
+  set:function(k,v){ if(_pdWiped) return; var kk=DBK(k); try{ v=sanStore(k,v); }catch(e){} try{ localStorage.setItem(kk,v); }catch(e){ mem[kk]=v; } }
 };
 var HOST = (function(){ try{ return location.host + location.pathname + "#"; }catch(e){ return "podoya.ai.kr/pododa.html#"; } })();
 var PAY_IMG1="pay1.jpg";
@@ -1631,6 +1632,8 @@ function router(){
   if(head==="sell") return renderSell();
   if(head==="p"||head==="buy") return renderProduct(parts[1], parts[2]);
   if(head==="settings") return renderSettings();
+  if(head==="privacy") return renderPrivacy();
+  if(head==="leave") return renderLeave();
   if(head==="admin") return renderAdmin();
   if(head==="collect") return renderCollect();
   if(head==="cafe"||head==="store") return renderStore(parts[1]);
@@ -1645,7 +1648,7 @@ function setActiveTab(h){
   if(h.indexOf("#/stores")===0||h.indexOf("#/cafe/")===0||h.indexOf("#/order")===0||h.indexOf("#/m/")===0||h.indexOf("#/menu")===0) { var ts=$("#tab-stores"); if(ts) ts.classList.add("on"); }
   else if(h.indexOf("#/register")===0||h.indexOf("#/sell")===0||h.indexOf("#/admin")===0||h.indexOf("#/open")===0) { var rg=$("#tab-reg"); if(rg) rg.classList.add("on"); }
   else if(h.indexOf("#/shop")===0||h.indexOf("#/p/")===0||h.indexOf("#/buy/")===0) { var sb2=$("#tab-shop"); if(sb2) sb2.classList.add("on"); }
-  else if(h.indexOf("#/collect")===0||h.indexOf("#/settings")===0) { var st=$("#tab-settings"); if(st) st.classList.add("on"); }
+  else if(h.indexOf("#/collect")===0||h.indexOf("#/settings")===0||h.indexOf("#/privacy")===0||h.indexOf("#/leave")===0) { var st=$("#tab-settings"); if(st) st.classList.add("on"); }
   else { var hm=$("#tab-home"); if(hm) hm.classList.add("on"); }
 }
 
@@ -3728,9 +3731,281 @@ function renderSettings(){
         '</div>'+
         '<div id="fl-lang-status" data-no-i18n style="margin-top:12px;font-size:11.5px;color:var(--sub);line-height:1.6;font-weight:700">📍</div>'+
         '<div style="margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5">🌐 한국어 외 언어는 홈·포도톡·상점·등록·쇼핑·설정 전체 화면이 자동 번역돼요. <b>API 키 없이도</b> 무료 번역으로 동작합니다. 결과는 이 기기에 저장돼 다음부턴 즉시 표시됩니다.</div>'+
-      '</div></div>';
+      '</div></div>'+
+
+    /* ── 약관 · 계정 ───────────────────────────────────────── */
+    '<div style="font-size:12.5px;font-weight:800;color:var(--sub);letter-spacing:.5px;margin:22px 4px 8px">📄 약관 · 계정</div>'+
+    '<div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px">'+
+      '<button data-action="nav" data-to="#/privacy" style="width:100%;display:flex;align-items:center;gap:11px;text-align:left;padding:13px;margin-bottom:8px;border-radius:13px;border:1px solid var(--line);background:#F7F7FA;cursor:pointer;font-family:inherit">'+
+        '<span style="font-size:24px;flex-shrink:0">🛡️</span>'+
+        '<span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:800;color:var(--ink)">개인정보처리방침</span>'+
+        '<span style="display:block;font-size:12px;color:var(--sub);margin-top:2px">어떤 정보를 어디에 저장하는지</span></span>'+
+        '<span style="color:var(--sub);font-size:17px">›</span>'+
+      '</button>'+
+      '<button data-action="nav" data-to="#/leave" style="width:100%;display:flex;align-items:center;gap:11px;text-align:left;padding:13px;border-radius:13px;border:1px solid #F0D2D8;background:#FFF7F8;cursor:pointer;font-family:inherit">'+
+        '<span style="font-size:24px;flex-shrink:0">🚪</span>'+
+        '<span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:800;color:#C0476B">계정 탈퇴</span>'+
+        '<span style="display:block;font-size:12px;color:var(--sub);margin-top:2px">내 가게·주문·기록을 모두 삭제</span></span>'+
+        '<span style="color:#C0476B;font-size:17px">›</span>'+
+      '</button>'+
+    '</div>'+
+    '<div style="height:24px"></div>';
   setActiveTab("#/settings");
   try{ flLangStatus(); }catch(e){}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   개인정보처리방침
+   ── 내용은 이 앱이 실제로 하는 일과 맞춰 쓴 것입니다.
+      기능을 바꾸면(수집 항목·제3자 추가) 이 화면도 같이 고쳐야 합니다.
+   ══════════════════════════════════════════════════════════════ */
+var PD_PRIVACY = {
+  updated: "2026년 8월 11일",
+  contact: "hasin7jk@gmail.com",
+  service: "포도다(Pododa)"
+};
+function pdArt(n, title, bodyHtml){
+  return '<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-bottom:10px">'+
+    '<div style="font-size:14.5px;font-weight:900;color:var(--ink);margin-bottom:8px">'+n+'. '+title+'</div>'+
+    '<div style="font-size:13px;color:#3c3646;line-height:1.8">'+bodyHtml+'</div></div>';
+}
+function renderPrivacy(){
+  var P=PD_PRIVACY;
+  $("#view").innerHTML =
+    '<div class="back" data-action="nav" data-to="#/settings">‹ 설정</div>'+
+    '<div class="hd"><div class="eyebrow">개인정보처리방침</div><h1>🛡️ 개인정보<br>처리방침</h1>'+
+      '<p>'+P.service+'는 최소한의 정보만 다룹니다. 이름·주민번호·이메일을 받지 않고, 회원가입 자체가 없습니다.</p></div>'+
+
+    '<div style="background:var(--grape-soft);border:1.5px solid #D6C6FA;border-radius:14px;padding:14px 16px;margin-bottom:14px">'+
+      '<div style="font-size:13.5px;font-weight:900;color:#4C1D95;margin-bottom:7px">한 눈에 보기</div>'+
+      '<div style="font-size:12.5px;color:#5B4B7A;line-height:1.85">'+
+        '· 회원가입 없음 — 이름·이메일·전화번호를 받지 않습니다<br>'+
+        '· 손님은 <b>기기 안에만</b> 기록이 남습니다<br>'+
+        '· 사장님은 가게 정보와 주문만 서버에 저장됩니다<br>'+
+        '· AI API 키는 <b>서버로 보내지 않습니다</b><br>'+
+        '· 광고·마케팅 목적으로 쓰지 않고, 팔지 않습니다'+
+      '</div></div>'+
+
+    pdArt(1, "수집하는 정보",
+      '회원가입이 없으므로 이름·생년월일·주민등록번호·이메일·전화번호를 <b>수집하지 않습니다.</b><br><br>'+
+      '<b>손님(구매자)</b><br>'+
+      '· 장바구니, 주문 내역, 작성한 리뷰, 포도톡 대화 — 모두 <b>이 기기 안에만</b> 저장됩니다<br>'+
+      '· 주문을 넣으면 주문번호·품목·금액·시각이 해당 가게에 전달됩니다<br><br>'+
+      '<b>사장님(판매자)</b><br>'+
+      '· 가게 주소(slug), 가게 이름·업종·지역·대표 이모지<br>'+
+      '· 메뉴 이름·가격·설명·사진, 재고, 영업 상태<br>'+
+      '· 관리 PIN과 복구코드 — <b>원문이 아니라 되돌릴 수 없는 형태(해시)</b>로만 저장합니다<br>'+
+      '· 송금받을 계좌를 직접 입력하신 경우 그 계좌 정보<br>'+
+      '· 알림을 켜신 경우 브라우저가 발급한 푸시 주소(endpoint)<br><br>'+
+      '<b>자동으로 남는 것</b><br>'+
+      '· 서버 남용을 막기 위한 접속 IP 기준 요청 횟수 — 1분 단위로만 세고 곧 지워집니다')+
+
+    pdArt(2, "정보를 쓰는 목적",
+      '· 가게·메뉴를 손님에게 보여주고 주문을 전달하기 위해<br>'+
+      '· 사장님 본인 확인(PIN)과 다른 기기에서 같은 가게로 들어오기 위해<br>'+
+      '· 새 주문 알림을 보내기 위해<br>'+
+      '· 동시 주문으로 재고가 초과 판매되지 않게 하기 위해<br>'+
+      '· 도배·욕설·허위 리뷰를 걸러내기 위해<br><br>'+
+      '광고, 프로파일링, 제3자 판매 목적으로는 <b>일절 사용하지 않습니다.</b>')+
+
+    pdArt(3, "AI API 키",
+      'Claude·Gemini API 키를 넣으신 경우, 키는 <b>이 기기의 localStorage에만</b> 저장됩니다. '+
+      '포도다 서버는 키를 받지도, 보관하지도 않습니다. AI 요청은 이 기기에서 해당 회사로 <b>직접</b> 나갑니다.<br><br>'+
+      '공용 기기를 쓰셨다면 설정 화면의 <b>「이 앱에 저장한 키 전체 삭제」</b>로 지워주세요.')+
+
+    pdArt(4, "저장하는 곳",
+      '· <b>이 기기</b> — 브라우저 localStorage (장바구니·주문 기록·대화·설정·AI 키)<br>'+
+      '· <b>서버</b> — Cloudflare Workers 와 D1 데이터베이스 (가게·메뉴·주문·PIN 해시·푸시 주소)<br><br>'+
+      'Cloudflare는 전 세계에 서버를 두고 있어 데이터가 국외에 저장·처리될 수 있습니다. '+
+      '서비스 제공에 꼭 필요한 범위에서만 이용하며, 별도 동의 없이 다른 목적으로 넘기지 않습니다.')+
+
+    pdArt(5, "함께 쓰는 외부 서비스",
+      '<b>Cloudflare</b> — 사이트 호스팅, 데이터베이스, 푸시 발송<br>'+
+      '<b>Anthropic · Google</b> — 키를 직접 넣으신 경우에만, 입력하신 문장이나 메뉴판 사진이 AI 처리를 위해 전달됩니다<br>'+
+      '<b>OpenStreetMap Nominatim</b> — 「현위치」 버튼을 누르셨을 때 좌표를 주소로 바꾸는 데만 씁니다<br>'+
+      '<b>Google 번역 · MyMemory</b> — 한국어 외 언어를 고르셨을 때 화면 문구 번역<br>'+
+      '<b>브라우저 푸시 서비스</b> — Google·Apple·Mozilla 등, 알림을 켜신 경우에만<br><br>'+
+      '토스·카카오페이·네이버페이는 앱을 <b>열어주기만</b> 합니다. 포도다는 결제를 대행하지 않고, 카드번호나 계좌 비밀번호를 받지 않습니다.')+
+
+    pdArt(6, "위치 정보",
+      '가게 등록 화면의 <b>📍 현위치</b> 버튼을 직접 누르셨을 때만 위치를 확인합니다. '+
+      '받아온 좌표는 주소 문자열로 바꾼 뒤 버리며, 좌표 자체를 저장하거나 서버로 보내지 않습니다. '+
+      '위치 권한을 거부하셔도 주소를 직접 입력하시면 모든 기능이 그대로 동작합니다.')+
+
+    pdArt(7, "보관 기간과 파기",
+      '· 기기 안 기록 — 브라우저 데이터를 지우거나 탈퇴하시면 즉시 사라집니다<br>'+
+      '· 가게·메뉴 — 탈퇴하실 때까지 보관하고, 탈퇴 즉시 삭제합니다<br>'+
+      '· 주문 — 거래 분쟁에 대비해 가게가 남아 있는 동안 보관하고, 탈퇴하시면 함께 삭제합니다<br>'+
+      '· 푸시 주소 — 알림을 끄거나 구독이 만료되면 삭제합니다<br>'+
+      '· 남용 방지 카운터 — 1분 뒤 자동으로 사라집니다')+
+
+    pdArt(8, "이용자의 권리",
+      '언제든지 아래 권리를 행사하실 수 있습니다.<br><br>'+
+      '· <b>열람</b> — 내 가게 정보는 관리자 화면에서, 주문은 주문 내역에서 바로 보실 수 있습니다<br>'+
+      '· <b>정정</b> — 가게·메뉴 정보는 직접 수정하실 수 있습니다<br>'+
+      '· <b>삭제·탈퇴</b> — 설정 → <b>계정 탈퇴</b>에서 기기와 서버의 기록을 한 번에 지울 수 있습니다<br>'+
+      '· <b>알림 거부</b> — 관리자 화면에서 끄거나, 브라우저 설정에서 권한을 취소하시면 됩니다')+
+
+    pdArt(9, "쿠키",
+      '광고·추적 쿠키를 쓰지 않습니다. 로그인 상태와 설정을 기억하기 위해 브라우저의 localStorage만 사용합니다.')+
+
+    pdArt(10, "어린이",
+      '만 14세 미만 어린이를 대상으로 하지 않으며, 어린이의 정보를 알면서 수집하지 않습니다.')+
+
+    pdArt(11, "안전 조치",
+      '· PIN과 복구코드는 원문 대신 반복 해싱한 값으로만 저장합니다<br>'+
+      '· 가게 수정·주문 확인은 로그인한 사장님 본인만 가능합니다<br>'+
+      '· 모든 통신은 HTTPS로 암호화됩니다<br>'+
+      '· 푸시 알림 본문도 암호화해 보냅니다<br><br>'+
+      '다만 <b>PIN을 잊으면 복구코드 외에는 되돌릴 방법이 없습니다.</b> 설정 직후 나오는 복구코드를 꼭 따로 적어두세요.')+
+
+    pdArt(12, "문의처",
+      '개인정보 관련 문의·열람·삭제 요청은 아래로 연락 주시면 됩니다.<br><br>'+
+      '<b>'+PD_PRIVACY.contact+'</b><br><br>'+
+      '개인정보 침해에 대한 상담이 필요하시면 개인정보침해신고센터(privacy.kisa.or.kr, 국번 없이 118)나 '+
+      '개인정보 분쟁조정위원회(kopico.go.kr, 1833-6972)에 문의하실 수 있습니다.')+
+
+    pdArt(13, "방침 변경",
+      '내용이 바뀌면 이 화면에서 미리 알려드립니다.<br><br>'+
+      '<b>시행일 · 최종 수정</b> — '+P.updated)+
+
+    '<div style="height:30px"></div>';
+  setActiveTab("#/settings");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   계정 탈퇴
+   ── 무엇이 지워지는지 먼저 다 보여주고, 한 번 더 확인받습니다.
+   ══════════════════════════════════════════════════════════════ */
+/* 이 기기에 남아 있는 포도다 데이터를 전부 지웁니다.
+   키 이름 뒤에 @국가코드가 붙는 경우가 있어 접두사로 훑습니다. */
+function pdWipeLocal(){
+  var kill=[], i, k;
+  _pdWiped = true;                       /* 이 시점부터 모든 저장을 막습니다 */
+  try{
+    for(i=0;i<localStorage.length;i++){
+      k=localStorage.key(i);
+      if(!k) continue;
+      if(k.indexOf("fl_")===0) kill.push(k);
+      /* 포도야에서 건네받은 키 사본 — 포도야 본진(다른 오리진)에서는 건드리지 않습니다 */
+      else if(k.indexOf("podoai_")===0 && location.origin!==PD_CFG.BRIDGE_ORIGIN) kill.push(k);
+    }
+    kill.forEach(function(x){ try{ localStorage.removeItem(x); }catch(e){} });
+  }catch(e){}
+  return kill.length;
+}
+/* 푸시 구독을 끊고 서비스워커도 내립니다 */
+function pdWipePush(){
+  return new Promise(function(done){
+    if(!("serviceWorker" in navigator)) return done();
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      var jobs=(regs||[]).map(function(reg){
+        return reg.pushManager.getSubscription().then(function(sub){
+          if(!sub) return null;
+          var ep=sub.endpoint;
+          return sub.unsubscribe().then(function(){
+            if(pdApiOn()) return pdFetch("/push/unsubscribe",{method:"POST",body:{endpoint:ep}});
+          }).catch(function(){});
+        }).catch(function(){}).then(function(){ return reg.unregister().catch(function(){}); });
+      });
+      Promise.all(jobs).then(function(){ done(); }, function(){ done(); });
+    }).catch(function(){ done(); });
+  });
+}
+function pdReload(){ try{ location.hash=""; location.reload(); }catch(e){} }
+function renderLeave(){
+  var owned=ownedSlugs().map(findStore).filter(Boolean);
+  var myOrders=orders().length;
+  var myTalk=(typeof talkRooms==="function") ? talkRooms().length : 0;
+
+  function bullet(e, t, s){
+    return '<div style="display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)">'+
+      '<div style="flex:0 0 auto;font-size:18px">'+e+'</div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800;color:var(--ink)">'+t+'</div>'+
+      '<div style="font-size:12px;color:var(--sub);line-height:1.6;margin-top:2px">'+s+'</div></div></div>';
+  }
+  var storeBox = owned.length ? (
+    '<div style="background:#FFF7F8;border:1.5px solid #F0D2D8;border-radius:14px;padding:14px 16px;margin-bottom:14px">'+
+      '<div style="font-size:13.5px;font-weight:900;color:#C0476B;margin-bottom:8px">함께 사라지는 내 가게 '+owned.length+'곳</div>'+
+      owned.map(function(st){
+        return '<div style="font-size:13px;color:#3c3646;padding:4px 0;font-weight:700">'+st.emoji+' '+escapeHtml(st.name)+
+          ' <span style="font-weight:600;color:var(--sub)">· 메뉴 '+((st.menus||[]).length)+'개</span></div>';
+      }).join("")+
+      '<div style="font-size:12px;color:#8a5a68;line-height:1.65;margin-top:9px">손님들의 상점 목록에서도 사라지고, 발행하신 QR·주문 링크는 더 이상 열리지 않습니다.</div>'+
+    '</div>'
+  ) : '';
+
+  $("#view").innerHTML =
+    '<div class="back" data-action="nav" data-to="#/settings">‹ 설정</div>'+
+    '<div class="hd"><div class="eyebrow">계정 탈퇴</div><h1>🚪 정말<br>탈퇴하시겠어요?</h1>'+
+      '<p>탈퇴하면 아래 내용이 모두 지워집니다. <b>되돌릴 수 없습니다.</b></p></div>'+
+
+    storeBox+
+
+    '<div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:6px 16px 12px;margin-bottom:14px">'+
+      bullet("🏪","가게·메뉴·사진", owned.length? ("가게 "+owned.length+"곳과 등록하신 모든 메뉴가 서버와 이 기기에서 삭제됩니다") : "등록하신 가게가 없습니다")+
+      bullet("🧾","주문 내역", myOrders? (myOrders+"건의 주문 기록이 사라집니다. 정산이 끝나지 않은 주문이 있다면 먼저 마무리해주세요") : "남아 있는 주문이 없습니다")+
+      bullet("💬","포도톡 대화", myTalk? (myTalk+"개 대화방과 주고받은 메시지가 모두 지워집니다") : "대화 기록이 없습니다")+
+      bullet("⭐","작성한 리뷰", "내 가게에 달린 리뷰도 가게와 함께 사라집니다")+
+      bullet("🔑","AI API 키", "이 기기에 저장한 Claude·Gemini 키가 지워집니다")+
+      bullet("🔔","알림 설정", "푸시 구독이 해지되어 더 이상 주문 알림이 오지 않습니다")+
+      bullet("🔒","PIN·복구코드", "서버에서 삭제됩니다. 같은 가게 주소로 다시 등록할 수 없을 수 있습니다")+
+    '</div>'+
+
+    '<div class="tip" style="margin-bottom:14px">💡 <b>잠깐만요</b> — 가게를 잠시 쉬고 싶으신 거라면 탈퇴 대신 관리자 화면에서 <b>휴무로 전환</b>하시면 됩니다. 주문만 막히고 가게와 메뉴는 그대로 남습니다.</div>'+
+
+    (owned.length && pdApiOn()
+      ? '<div class="field"><label>확인을 위해 가게 관리 PIN을 입력해주세요</label>'+
+          '<input id="leave-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">'+
+          '<div class="hint">가게 '+owned.length+'곳 모두 같은 PIN을 쓰지 않으신다면, 가게별로 로그인해 하나씩 탈퇴하셔야 합니다.</div></div>'
+      : '')+
+
+    '<label style="display:flex;gap:10px;align-items:flex-start;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;cursor:pointer">'+
+      '<input type="checkbox" id="leave-agree" style="width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:#C0476B">'+
+      '<span style="font-size:13px;color:var(--ink);line-height:1.65;font-weight:700">위 내용을 모두 확인했고, 되돌릴 수 없다는 점에 동의합니다.</span>'+
+    '</label>'+
+
+    '<button data-action="leave-run" style="width:100%;padding:16px;border:none;border-radius:16px;background:#C0476B;color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit">탈퇴하기</button>'+
+    '<button data-action="nav" data-to="#/settings" style="width:100%;margin-top:10px;padding:13px;border:1.5px solid var(--line);border-radius:14px;background:#fff;color:var(--sub);font-weight:800;font-size:14px;cursor:pointer;font-family:inherit">그대로 두기</button>'+
+    '<div style="height:30px"></div>';
+  setActiveTab("#/settings");
+}
+/* 실제 삭제 — 서버 먼저, 그 다음 기기 */
+function pdLeaveRun(){
+  var ag=$("#leave-agree");
+  if(!ag||!ag.checked){ toast("안내 내용을 확인하고 동의해주세요"); return; }
+  var owned=ownedSlugs().filter(function(s){ return !!findStore(s); });
+  var pin=(($("#leave-pin")||{}).value||"").trim();
+
+  if(!confirm("정말 탈퇴하시겠어요?\n\n가게·메뉴·주문·대화가 모두 삭제되고 되돌릴 수 없습니다.")) return;
+
+  function finish(msg){
+    pdWipePush().then(function(){
+      pdWipeLocal();
+      alert(msg||"탈퇴가 완료되었습니다.\n\n그동안 이용해주셔서 감사합니다.");
+      pdReload();
+    });
+  }
+
+  if(!owned.length || !pdApiOn()){ finish(); return; }
+
+  if(!pin){ toast("가게 관리 PIN을 입력해주세요"); var pe=$("#leave-pin"); if(pe) pe.focus(); return; }
+
+  toast("서버에서 삭제하는 중…");
+  var failed=[];
+  var jobs=owned.map(function(slug){
+    return pdFetch("/owner/delete",{method:"POST",body:{slug:slug, pin:pin}}).then(function(r){
+      if(!(r&&r.ok&&r.data&&r.data.ok)) failed.push({slug:slug, why:(r&&r.data&&r.data.error)||("HTTP "+((r&&r.status)||"?"))});
+    });
+  });
+  Promise.all(jobs).then(function(){
+    if(failed.length){
+      var names=failed.map(function(f){ var s=findStore(f.slug); return (s?s.name:f.slug)+" ("+f.why+")"; }).join("\n");
+      alert("일부 가게를 서버에서 지우지 못했습니다.\n\n"+names+"\n\nPIN이 다르면 그 가게로 로그인한 뒤 다시 시도해주세요.\n이 기기의 기록은 지우지 않았습니다.");
+      return;
+    }
+    finish("탈퇴가 완료되었습니다.\n가게 "+owned.length+"곳이 서버에서 삭제되었습니다.\n\n그동안 이용해주셔서 감사합니다.");
+  });
 }
 
 /* very light intent parsing (demo) */
@@ -4534,7 +4809,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v10 · 자유입점·목록공유</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v11 · 방침·탈퇴</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -6370,6 +6645,7 @@ document.addEventListener("click", function(e){
     return; }
   if(a==="key-bridge"){ pdBridgeRequest(); return; }
   if(a==="new-store"){ renderNewStore(); return; }
+  if(a==="leave-run"){ pdLeaveRun(); return; }
   if(a==="dir-refresh"){
     toast("가게 목록을 가져오는 중…");
     pdPullDirectory(true).then(function(ch){
