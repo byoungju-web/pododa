@@ -1467,7 +1467,8 @@ function seed(){
   DB.set("fl_stores", JSON.stringify(stores));
 }
 function stores(){ return JSON.parse(DB.get("fl_stores")||"[]"); }
-function saveStores(s){ DB.set("fl_stores", JSON.stringify(s)); }
+function saveStores(s){ DB.set("fl_stores", JSON.stringify(s));
+  try{ pdStoreChanged(); }catch(e){} }
 function cart(){ return JSON.parse(DB.get("fl_cart")||"[]"); }
 function saveCart(c){ DB.set("fl_cart", JSON.stringify(c)); }
 function cartFood(){ return JSON.parse(DB.get("fl_cart_food")||"[]"); }
@@ -1834,7 +1835,10 @@ function storeOwnerQR(s){
 }
 function renderStore(slug){
   var s = findStore(slug);
-  if(s && pdApiOn()) pdSyncStock(s.slug).then(function(ch){ if(ch && location.hash.indexOf("/cafe/")>=0) renderStore(slug); });
+  if(s && pdApiOn()){
+    pdSyncStock(s.slug).then(function(ch){ if(ch && location.hash.indexOf("/cafe/")>=0) renderStore(slug); });
+    pdPullStore(s.slug).then(function(ch){ if(ch && location.hash.indexOf("/cafe/")>=0) renderStore(slug); });
+  }
   if(!s){ $("#view").innerHTML='<div class="empty"><div class="ee">🤔</div>가게를 찾을 수 없어요</div>'; return; }
   var closed = !storeOpen(s);
   var listed = s.menus.filter(isListed);
@@ -3133,6 +3137,49 @@ function pdSyncOrders(st){
   });
 }
 
+/* ── 가게·메뉴 서버 동기화 ───────────────────────────────────
+   메뉴가 기기 로컬에만 있으면 폰에서 등록한 걸 PC에서 못 봅니다.
+   사장님이 고치면 서버로 올리고, 화면을 열 때 서버 것을 받아옵니다. */
+function pdStoreBase(slug){ try{ return parseInt(DB.get("fl_store_base_"+slug)||"0",10)||0; }catch(e){ return 0; } }
+function pdStoreBaseSet(slug,v){ DB.set("fl_store_base_"+slug, String(v||0)); }
+
+function pdPushStore(slug){
+  if(!pdApiOn() || pdOwnerSlug()!==slug) return Promise.resolve(false);
+  var st=findStore(slug); if(!st) return Promise.resolve(false);
+  return pdFetch("/store/save",{method:"POST",body:{slug:slug,store:st,base:pdStoreBase(slug)}})
+    .then(function(r){
+      if(r&&r.ok&&r.data&&r.data.ok){ pdStoreBaseSet(slug,r.data.updated); return true; }
+      if(r&&r.status===409){
+        toast("다른 기기에서 먼저 수정했어요 · 최신 내용을 가져옵니다");
+        return pdPullStore(slug,true).then(function(){ try{ renderAdmin(); }catch(e){} return false; });
+      }
+      if(r&&r.status===413) alert("가게 정보가 너무 큽니다.\n사진 장수를 줄여주세요.");
+      return false;
+    });
+}
+function pdPullStore(slug, force){
+  if(!pdApiOn()) return Promise.resolve(false);
+  return pdFetch("/store?slug="+encodeURIComponent(slug)).then(function(r){
+    if(!r||!r.ok||!r.data||!r.data.store) return false;
+    var updated=r.data.updated||0;
+    if(!force && updated<=pdStoreBase(slug)) return false;
+    var ss=stores(), hit=false;
+    for(var i=0;i<ss.length;i++){ if(ss[i].slug===slug){ ss[i]=r.data.store; hit=true; } }
+    if(!hit) ss.push(r.data.store);
+    _pdSyncing=true; saveStores(ss); _pdSyncing=false;   /* 되돌아 올리지 않도록 */
+    pdStoreBaseSet(slug, updated);
+    return true;
+  });
+}
+/* 저장이 잦으므로 조금 묶어서 보냅니다 */
+var _pdSaveTimer=null, _pdSyncing=false;
+function pdStoreChanged(){
+  if(_pdSyncing || !pdApiOn()) return;
+  var me=pdOwnerSlug(); if(!me) return;
+  if(_pdSaveTimer) clearTimeout(_pdSaveTimer);
+  _pdSaveTimer=setTimeout(function(){ pdPushStore(me); }, 1200);
+}
+
 /* ── 포도야 키 브리지 ─────────────────────────────────────────
    pododa.kr 은 podoya.ai.kr 과 다른 오리진이라 localStorage 를 공유하지 못합니다.
    podoya.ai.kr 에 올려둔 같은 파일을 팝업으로 열어 키를 한 번만 건네받습니다.
@@ -4345,7 +4392,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v7 · 인증수정</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v9 · 동기화·초대</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -4434,6 +4481,8 @@ function renderOwnerAuth(slug, forceSet, forceLogin){
     (first
       ? '<div class="field"><label>새 PIN (숫자 4~12자리)</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="new-password" placeholder="••••"></div>'+
         '<div class="field"><label>PIN 다시 입력</label><input id="pin-new2" type="password" inputmode="numeric" autocomplete="new-password" placeholder="••••"></div>'+
+        (pdApiOn()?'<div class="field"><label>초대코드</label><input id="pin-invite" placeholder="예: A1B2C3D4" autocapitalize="characters">'+
+          '<div class="hint">가게를 처음 등록할 때 필요합니다. 없으면 운영자에게 요청하세요.</div></div>':'')+
         '<button data-action="owner-pin-set" data-slug="'+escapeHtml(slug)+'" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#6D28D9,#4C1D95);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">PIN 설정하고 시작</button>'+
         '<div class="tip" style="margin-top:12px">⚠️ PIN은 이 기기에만 저장됩니다. 설정 직후 나오는 <b>복구코드</b>를 꼭 적어두세요. 잊으면 되돌릴 방법이 없습니다.</div>'
       : '<div class="field"><label>PIN</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••"></div>'+
@@ -4470,7 +4519,8 @@ function ownerPinSet(slug){
 
   /* 서버 모드 — 서버 등록이 성공해야 진짜 설정된 것입니다 */
   toast("서버에 등록 중…");
-  pdFetch("/owner/register",{method:"POST",body:{slug:slug,pin:a}}).then(function(r){
+  var inv=(($("#pin-invite")||{}).value||"").toUpperCase().trim();
+  pdFetch("/owner/register",{method:"POST",body:{slug:slug,pin:a,invite:inv}}).then(function(r){
     if(r.ok && r.data && r.data.ok){
       pdSetPin(slug, a);                            /* 이 기기에도 보관 */
       pdLogin(slug, r.data.token);
@@ -4479,11 +4529,16 @@ function ownerPinSet(slug){
       toast("PIN을 설정했어요");
       pdSeenMark(); pdPushSubscribe();
       pdSyncStock(slug); var _s2=findStore(slug); if(_s2) pdSyncOrders(_s2);
+      pdPushStore(slug);                       /* 지금 기기의 메뉴를 서버에 올려둡니다 */
       renderAdmin(); return;
     }
     if(r.status===409){
       toast("이미 서버에 등록된 가게예요. PIN으로 로그인해주세요");
       renderOwnerAuth(slug, false, true);           /* 로그인 화면 강제 */
+      return;
+    }
+    if(r.status===403){                             /* 초대코드 문제 */
+      alert(((r.data&&r.data.error)||"초대코드가 필요합니다")+"\n\n가게를 처음 등록하려면 운영자에게 초대코드를 받아주세요.");
       return;
     }
     alert("서버에 등록하지 못했어요\n\n"+((r&&r.data&&r.data.error)||("HTTP "+((r&&r.status)||"?"))));
@@ -4502,6 +4557,7 @@ function ownerPinSubmit(slug){
         pdLogin(slug, r.data.token);
         toast("로그인했어요"); pdSeenMark(); pdPushSubscribe();
         pdSyncStock(slug); var _st=findStore(slug); if(_st) pdSyncOrders(_st);
+        pdPullStore(slug).then(function(ch){ if(ch){ toast("다른 기기의 메뉴를 가져왔어요"); renderAdmin(); } });
         renderAdmin(); return;
       }
       if(r.status===404){
@@ -6058,6 +6114,18 @@ document.addEventListener("click", function(e){
     invApply(arr, -1);   /* 재고 차감 */
     try{ var _newOd=orders()[orders().length-1]; pdOnNewOrder(_newOd);
       if(pdApiOn()) pdCreateOrderRemote(_newOd).then(function(r){
+        if(r && r.status===429){
+          invApply(_newOd.items, +1);
+          saveOrders(orders().filter(function(o){ return o.no!==_newOd.no; }));
+          alert("주문이 너무 잦습니다.\n\n잠시 후 다시 시도해주세요.");
+          return;
+        }
+        if(r && r.status===400){
+          invApply(_newOd.items, +1);
+          saveOrders(orders().filter(function(o){ return o.no!==_newOd.no; }));
+          alert("주문을 처리할 수 없어요\n\n"+((r.data&&r.data.error)||""));
+          return;
+        }
         if(r && r.status===409){
           /* 다른 기기가 먼저 가져갔다 → 로컬 주문·재고를 되돌립니다 */
           var sh=(r.data&&r.data.short)||{};
@@ -6095,7 +6163,10 @@ document.addEventListener("click", function(e){
   if(a==="owner-force-set"){ renderOwnerAuth(el.getAttribute("data-slug"), true); return; }
   if(a==="owner-recover"){ ownerRecover(el.getAttribute("data-slug")); return; }
   if(a==="owner-logout"){ pdLogout(); toast("로그아웃했어요"); renderAdminLogin(); return; }
-  if(a==="owner-back"){ renderAdminLogin(); return; }
+  if(a==="owner-back"){
+    /* 이미 다른 가게로 로그인 중이면 그 관리자 화면으로 돌아갑니다 */
+    if(pdOwnerSlug()) renderAdmin(); else renderAdminLogin();
+    return; }
   if(a==="noti-ask"){ DB.set("fl_noti_ask",""); pdNotiAsk(function(){ renderAdmin(); }); return; }
   if(a==="noti-later"){ DB.set("fl_noti_ask","later"); toast("나중에 상단 띠에서 켜실 수 있어요"); renderAdmin(); return; }
   if(a==="noti-test"){
@@ -6139,7 +6210,13 @@ document.addEventListener("click", function(e){
     }, function(){ gi.placeholder=op; toast("위치 권한을 허용해 주세요"); }, {enableHighAccuracy:true, timeout:9000, maximumAge:60000});
     return;
   }
-  if(a==="switch-store"){ DB.set("fl_owner", el.getAttribute("data-slug")); DB.set("fl_admin_tab","add"); renderAdmin(); return; }
+  if(a==="switch-store"){
+    var _to=el.getAttribute("data-slug");
+    if(_to===pdOwnerSlug()){ DB.set("fl_admin_tab","add"); renderAdmin(); return; }
+    /* 가게마다 PIN이 따로입니다. 전환하려면 그 가게로 다시 인증해야 합니다. */
+    DB.set("fl_admin_tab","add");
+    renderOwnerAuth(_to);
+    return; }
   if(a==="create-store"){
     var owned=ownedSlugs();
     if(owned.length>=5){ toast("상점은 최대 5개까지 등록할 수 있어요"); return; }
