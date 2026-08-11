@@ -828,13 +828,16 @@ img{display:block;max-width:100%}
 .match-primary:active{transform:translateY(1px)}
 .mp-sell{background:linear-gradient(135deg,#1877b3,#2b9fd6)!important;box-shadow:0 5px 16px rgba(24,119,179,.3)!important}
 .mp-buy{background:linear-gradient(135deg,#c2410c,#e35d2b)!important;box-shadow:0 5px 16px rgba(194,65,12,.3)!important}
-.mfs{flex:1;padding:11px;border-radius:11px;border:1.5px solid var(--line);background:#fff;color:var(--sub);font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
+.mfs{flex:1;padding:14px 11px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--sub);font-weight:900;font-size:15px;cursor:pointer;font-family:inherit}
 .mfs.on-sell{border-color:#1877b3;background:#eaf4fb;color:#1877b3}
 .mfs.on-buy{border-color:#c2410c;background:#fdf0ea;color:#c2410c}
-.mlbl{display:block;font-size:12px;font-weight:800;color:var(--sub);margin:2px 2px 5px}
-.mfield{width:100%;padding:11px;border-radius:11px;border:1.5px solid var(--line);font-size:13.5px;font-family:inherit;margin-bottom:11px;box-sizing:border-box;background:#fff;color:var(--ink)}
+.mlbl{display:block;font-size:14.5px;font-weight:900;color:var(--ink);margin:6px 2px 8px;letter-spacing:-.2px}
+.mfield{width:100%;padding:15px 14px;border-radius:13px;border:1.5px solid var(--line);font-size:16px;font-weight:600;font-family:inherit;margin-bottom:14px;box-sizing:border-box;background:#fff;color:var(--ink);line-height:1.4}
+.mfield::placeholder{font-weight:500;color:#a9a3b6}
+.mfield:focus{outline:none;border-color:var(--grape);box-shadow:0 0 0 3px rgba(109,40,217,.10)}
+select.mfield{-webkit-appearance:menulist;appearance:menulist}
 .mopts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
-.mopt{padding:8px 13px;border-radius:10px;border:1.5px solid var(--line);background:#fff;color:var(--sub);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.mopt{padding:11px 16px;border-radius:11px;border:1.5px solid var(--line);background:#fff;color:var(--sub);font-size:14px;font-weight:800;cursor:pointer;font-family:inherit}
 .mopt.on{border-color:#10b981;background:#ecfdf5;color:#0d9668}
 .match-banner{display:flex;align-items:center;gap:12px;padding:15px;border-radius:16px;margin-bottom:16px;cursor:pointer;background:linear-gradient(135deg,#0e9d78,#12b98f);box-shadow:0 5px 18px rgba(16,185,129,.28)}
 .match-banner .mb-e{font-size:30px}
@@ -912,16 +915,20 @@ img{display:block;max-width:100%}
 .tabseg{display:flex;background:var(--grape-soft);border-radius:12px;padding:4px;margin-bottom:18px}
 .tabseg button{flex:1;padding:9px;border-radius:9px;font-weight:800;font-size:13px;color:var(--grape)}
 .tabseg button.on{background:#fff;color:var(--grape-d);box-shadow:var(--shadow-sm)}
-.field{margin-bottom:14px}
-.field label{display:block;font-size:12.5px;font-weight:800;margin-bottom:6px;color:var(--ink)}
-.field input,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:14px;outline:none;background:var(--card)}
-.field input:focus,.field textarea:focus{border-color:var(--grape)}
+.field{margin-bottom:18px}
+/* 라벨은 손이 아니라 눈이 먼저 찾는 자리라 진하고 크게 둡니다 */
+.field label{display:block;font-size:14.5px;font-weight:900;margin-bottom:8px;color:var(--ink);letter-spacing:-.2px}
+/* 입력칸 글자는 16px 이상 — 이보다 작으면 폰에서 누를 때 화면이 확대됩니다 */
+.field input,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:13px;padding:15px 14px;font-size:16px;font-weight:600;line-height:1.4;outline:none;background:var(--card);color:var(--ink)}
+.field textarea{min-height:96px}
+.field input::placeholder,.field textarea::placeholder{font-weight:500;color:#a9a3b6}
+.field input:focus,.field textarea:focus{border-color:var(--grape);box-shadow:0 0 0 3px rgba(109,40,217,.10)}
 .selwrap{position:relative}
-.selwrap select{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 38px 12px 13px;font-size:14px;outline:none;background:var(--card);color:var(--ink);-webkit-appearance:none;appearance:none}
+.selwrap select{width:100%;border:1.5px solid var(--line);border-radius:13px;padding:15px 40px 15px 14px;font-size:16px;font-weight:600;outline:none;background:var(--card);color:var(--ink);-webkit-appearance:none;appearance:none}
 .selwrap select:focus{border-color:var(--grape)}
 .selwrap .selarrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--grape);font-size:13px;pointer-events:none}
-.field .hint{font-size:11px;color:var(--sub);margin-top:5px}
-.uploader{border:1.5px dashed #D9C8F0;border-radius:14px;padding:18px;text-align:center;background:#FAF6FF;color:var(--grape);font-weight:700;font-size:13px}
+.field .hint{font-size:12.5px;color:var(--sub);margin-top:7px;line-height:1.55}
+.uploader{border:1.5px dashed #D9C8F0;border-radius:14px;padding:24px 18px;text-align:center;background:#FAF6FF;color:var(--grape);font-weight:800;font-size:14.5px}
 .uploader img{width:84px;height:84px;border-radius:12px;object-fit:cover;margin:0 auto 8px}
 .gen-url{background:var(--ink);color:#fff;border-radius:14px;padding:14px;margin-top:6px}
 .gen-url .gt{font-size:11px;font-weight:800;color:#C9B6E8;letter-spacing:.5px;margin-bottom:7px}
@@ -5013,7 +5020,7 @@ function renderNewStore(){
         '</div>';
       }).join("")+'</div>'
   ) : "";
-  var selCss='width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;background:#fff;font-family:inherit;color:#222;-webkit-appearance:menulist;appearance:menulist';
+  var selCss='width:100%;padding:15px 14px;border:1.5px solid var(--line);border-radius:13px;font-size:16px;font-weight:600;background:#fff;font-family:inherit;color:var(--ink);-webkit-appearance:menulist;appearance:menulist';
   $("#view").innerHTML =
     '<div class="hd"><div class="eyebrow">상점 등록</div><h1>🏪 새 상점 만들기</h1>'+
       '<p>'+(n?('내 상점을 최대 5개까지 등록할 수 있어요. (현재 '+n+'/5)')
@@ -5116,7 +5123,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v14 · 쇼핑 첫화면·위치탭</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v15 · 입력칸 확대</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -7264,11 +7271,23 @@ try{ pdMigrateCoordArea(); }catch(e){}
 try{ pdStartPolling(); }catch(e){}
 /* 처음 오신 분께는 위치 설정 화면을 한 번 띄웁니다.
    QR·주문 링크로 바로 들어온 경우(해시가 있는 경우)는 건드리지 않습니다. */
+router();
+/* 처음 오신 분께는 브라우저 위치 팝업을 바로 띄웁니다.
+   QR·주문 링크로 들어온 경우(해시가 있는 경우)는 건드리지 않습니다.
+   거부하셔도 앱은 그대로 쓸 수 있고, 설정 → 내 위치 설정에서 다시 켤 수 있습니다. */
 try{
   var _h0=(location.hash||"").replace(/^#\/?/,"");
-  if(!_h0 && !pdLocAsked() && !pdMyLoc() && !pdIsBridgeMode()){ location.hash="#/loc/first"; }
+  if(!_h0 && !pdLocAsked() && !pdMyLoc() && !pdIsBridgeMode()){
+    pdLocAskedSet();
+    setTimeout(function(){
+      pdAskLoc(function(got){
+        if(!got) return;
+        toast("📍 내 주변 가게부터 보여드릴게요");
+        try{ router(); }catch(e){}
+      }, true);
+    }, 400);
+  }
 }catch(e){}
-router();
 /* 어느 화면으로 들어왔든 가게 목록은 받아둡니다.
    (위치 화면에 머무는 동안 목록을 못 받으면 상점 탭이 비어 보입니다) */
 try{ pdDirRefresh(false); }catch(e){}
