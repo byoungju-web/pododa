@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>포도다 → 포도톡 연결</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#F3EDFC;color:#241436;display:flex;justify-content:center;min-height:100vh}
+.wrap{width:100%;max-width:430px;padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
+h1{font-size:21px;font-weight:900;letter-spacing:-.5px;margin:6px 0 6px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:1.4px;color:#7C3AED;text-transform:uppercase}
+p{font-size:13.5px;color:#5B4A76;line-height:1.6;margin:0 0 14px}
+.card{background:#fff;border:1px solid #E3D6F6;border-radius:14px;padding:13px 14px;margin-bottom:12px}
+.card b{color:#241436}
+.row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:#5B4A76}
+.row b{color:#241436;font-weight:800}
+button{width:100%;padding:15px;border:none;border-radius:14px;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer}
+.go{background:#7C3AED;color:#fff;box-shadow:0 8px 24px rgba(124,58,237,.32)}
+.go:active{background:#6D28D9}
+.sub{background:#fff;color:#7C3AED;border:1.5px solid #E3D6F6;margin-top:9px}
+.tip{font-size:12px;color:#8B7BAE;line-height:1.6;margin-top:12px}
+.ok{display:none;background:#EADFFB;border-radius:14px;padding:14px;font-size:13.5px;font-weight:800;color:#4C1D95;text-align:center;margin-top:12px}
+textarea{width:100%;height:120px;margin-top:10px;border:1.5px solid #E3D6F6;border-radius:12px;padding:10px;font-size:11px;font-family:ui-monospace,Menlo,monospace;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">PODODA → PODOTALK</div>
+  <h1>🍇 포도톡으로 대화 옮기기</h1>
+  <p>이 기기의 <b>포도다 대화·프로필·AI 키</b>를 <b>podotalk.kr</b> 로 한 번만 건네줍니다.
+     본인이 직접 연 경우에만 눌러주세요.</p>
+
+  <div class="card" id="stat">
+    <div class="row"><span>채팅방</span><b id="nRoom">-</b></div>
+    <div class="row"><span>대화 내용</span><b id="nMsg">-</b></div>
+    <div class="row"><span>AI 키</span><b id="nKey">-</b></div>
+  </div>
+
+  <button class="go" id="send">포도톡으로 보내고 창 닫기</button>
+  <button class="sub" id="copy">📋 백업 코드로 복사하기</button>
+  <textarea id="ta" readonly></textarea>
+  <div class="ok" id="ok">보냈어요 ✅ 포도톡 화면으로 돌아가세요</div>
+
+  <div class="tip">
+    보내는 값: 포도톡 채팅방·대화·닉네임·프로필·빠른답장·AI 키(Claude/Gemini).
+    주문·상점·결제 정보는 보내지 않습니다. 서버를 거치지 않고 브라우저 창끼리 직접 전달합니다.
+  </div>
+</div>
+
+<script>
+"use strict";
+/* 받는 쪽(포도톡) 주소 — 이 주소로만 보냅니다 */
+var TARGETS = ["https://podotalk.kr", "https://www.podotalk.kr"];
+
+function collect(){
+  var out={}, rooms=0, msgs=0, keys=0;
+  try{
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i); if(!k) continue;
+      var isTalk = k.indexOf("pododa_talk_")===0;
+      var isKey  = k.indexOf("fl_key_")===0 || k==="fl_provider" || k==="fl_gmodel";
+      if(!isTalk && !isKey) continue;
+      var v=null; try{ v=localStorage.getItem(k); }catch(e){}
+      if(v===null) continue;
+      out[k]=v;
+      if(k.indexOf("pododa_talk_rooms")===0){ try{ rooms += (JSON.parse(v)||[]).length; }catch(e){} }
+      else if(k.indexOf("pododa_talk_msg_")===0){ try{ msgs += (JSON.parse(v)||[]).length; }catch(e){} }
+      else if(k.indexOf("fl_key_")===0 && v){ keys++; }
+    }
+  }catch(e){}
+  return { data:out, rooms:rooms, msgs:msgs, keys:keys };
+}
+
+var got = collect();
+document.getElementById("nRoom").textContent = got.rooms + "개";
+document.getElementById("nMsg").textContent  = got.msgs + "개";
+document.getElementById("nKey").textContent  = got.keys ? (got.keys + "개 · 함께 전달") : "없음";
+
+document.getElementById("send").addEventListener("click", function(){
+  var payload = { __podotalk:"talk", v:1, ts:Date.now(), data:got.data };
+  TARGETS.forEach(function(t){
+    try{ if(window.opener) window.opener.postMessage(payload, t); }catch(e){}
+    try{ if(window.parent && window.parent!==window) window.parent.postMessage(payload, t); }catch(e){}
+  });
+  document.getElementById("ok").style.display="block";
+  setTimeout(function(){ try{ window.close(); }catch(e){} }, 700);
+});
+
+document.getElementById("copy").addEventListener("click", function(){
+  var s = JSON.stringify({ v:1, from:"pododa", ts:Date.now(), data:got.data });
+  var ta = document.getElementById("ta");
+  ta.style.display="block"; ta.value=s; ta.select();
+  try{ navigator.clipboard.writeText(s); }catch(e){ try{ document.execCommand("copy"); }catch(e2){} }
+});
+</script>
+</body>
+</html>
