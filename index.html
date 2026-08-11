@@ -1636,6 +1636,7 @@ function router(){
   if(head==="sell") return renderSell();
   if(head==="p"||head==="buy") return renderProduct(parts[1], parts[2]);
   if(head==="settings") return renderSettings();
+  if(head==="loc") return renderLoc(parts[1]==="first");
   if(head==="privacy") return renderPrivacy();
   if(head==="leave") return renderLeave();
   if(head==="admin") return renderAdmin();
@@ -1652,7 +1653,7 @@ function setActiveTab(h){
   if(h.indexOf("#/stores")===0||h.indexOf("#/cafe/")===0||h.indexOf("#/order")===0||h.indexOf("#/m/")===0||h.indexOf("#/menu")===0) { var ts=$("#tab-stores"); if(ts) ts.classList.add("on"); }
   else if(h.indexOf("#/register")===0||h.indexOf("#/sell")===0||h.indexOf("#/admin")===0||h.indexOf("#/open")===0) { var rg=$("#tab-reg"); if(rg) rg.classList.add("on"); }
   else if(h.indexOf("#/shop")===0||h.indexOf("#/p/")===0||h.indexOf("#/buy/")===0) { var sb2=$("#tab-shop"); if(sb2) sb2.classList.add("on"); }
-  else if(h.indexOf("#/collect")===0||h.indexOf("#/settings")===0||h.indexOf("#/privacy")===0||h.indexOf("#/leave")===0) { var st=$("#tab-settings"); if(st) st.classList.add("on"); }
+  else if(h.indexOf("#/collect")===0||h.indexOf("#/settings")===0||h.indexOf("#/privacy")===0||h.indexOf("#/leave")===0||h.indexOf("#/loc")===0) { var st=$("#tab-settings"); if(st) st.classList.add("on"); }
   else { var hm=$("#tab-home"); if(hm) hm.classList.add("on"); }
 }
 
@@ -1962,22 +1963,67 @@ function pdRenderMap(list){
     setTimeout(function(){ try{ map.invalidateSize(); }catch(e){} }, 220);
   }).catch(function(){ _pdLeaflet=null; pdMapFail(); });
 }
-/* 위치 안내 줄 — 화면 위쪽에서 "지금 어디 기준인지"를 알려줍니다 */
-function pdLocBarHtml(){
+/* ── 위치 설정 화면 ────────────────────────────────────────
+   검색창 밑에서 불쑥 묻지 않고, 전용 화면에서 한 번만 받습니다.
+   건너뛰어도 앱은 그대로 동작하고, 설정에서 언제든 다시 켤 수 있습니다. */
+function pdLocAsked(){ return DB.get("fl_loc_asked")==="1"; }
+function pdLocAskedSet(){ DB.set("fl_loc_asked","1"); }
+function renderLoc(first){
   var me=pdMyLoc();
-  if(!me){
-    return '<div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px">'+
-      '<div style="flex:1;min-width:0;font-size:12.5px;color:var(--sub);line-height:1.5">📍 위치를 켜면 <b style="color:var(--ink)">가까운 가게부터</b> 보여드려요</div>'+
-      '<button data-action="loc-ask" style="flex:0 0 auto;padding:9px 14px;border-radius:11px;border:1.5px solid var(--grape);background:var(--grape-soft);color:var(--grape);font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;white-space:nowrap">내 위치</button>'+
-    '</div>';
-  }
-  return '<div style="display:flex;align-items:center;gap:8px;padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px">'+
-    '<span style="font-size:15px">📍</span>'+
-    '<div style="flex:1;min-width:0;font-size:13.5px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
-      escapeHtml(me.label||"현재 위치")+'</div>'+
-    '<button data-action="loc-ask" style="flex:0 0 auto;padding:7px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--grape);font-size:12px;font-weight:800;font-family:inherit;cursor:pointer;white-space:nowrap">변경</button>'+
-  '</div>';
+  var known = me ? (me.label||"현재 위치") : "";
+  $("#view").innerHTML =
+    (first?'':'<div class="back" data-action="nav" data-to="#/settings">‹ 설정</div>')+
+    '<div class="hd"><div class="eyebrow">위치 설정</div><h1>📍 어디 계신가요?</h1>'+
+      '<p>위치를 알려주시면 <b>가까운 가게부터</b> 보여드리고, 상점 지도에서 거리도 표시합니다.<br>'+
+      '위치는 <b>이 기기에만 저장</b>되고 서버로 보내지 않습니다.</p></div>'+
+
+    (me
+      ? '<div style="background:var(--grape-soft);border:1.5px solid #D6C6FA;border-radius:16px;padding:16px;margin-bottom:14px">'+
+          '<div style="font-size:12px;font-weight:800;color:#5B4B7A">지금 설정된 위치</div>'+
+          '<div style="font-size:17px;font-weight:900;color:#4C1D95;margin-top:5px">📍 '+escapeHtml(known)+'</div>'+
+        '</div>'
+      : '')+
+
+    '<button data-action="loc-gps" style="width:100%;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,#6D28D9,#4C1D95);color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit">📍 현재 위치로 설정</button>'+
+
+    '<div style="display:flex;align-items:center;gap:10px;margin:16px 2px 12px">'+
+      '<div style="flex:1;height:1px;background:var(--line)"></div>'+
+      '<div style="font-size:11.5px;color:var(--sub);font-weight:700">또는 동네 이름으로</div>'+
+      '<div style="flex:1;height:1px;background:var(--line)"></div>'+
+    '</div>'+
+
+    '<div class="field"><label>동네 · 지역 입력</label>'+
+      '<div style="display:flex;gap:7px">'+
+        '<input id="loc-q" placeholder="예: 부산 서면 / 송파구 위례동" style="flex:1">'+
+        '<button data-action="loc-search" style="flex:0 0 auto;padding:0 16px;border-radius:12px;border:1.5px solid var(--grape);background:var(--grape-soft);color:var(--grape);font-weight:800;white-space:nowrap;cursor:pointer;font-family:inherit">찾기</button>'+
+      '</div>'+
+      '<div class="hint">위치 권한을 켜기 싫으시면 동네 이름만 적어도 됩니다.</div></div>'+
+
+    '<button data-action="loc-skip" style="width:100%;margin-top:8px;padding:13px;border:1.5px solid var(--line);border-radius:14px;background:#fff;color:var(--sub);font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit">'+
+      (first?'나중에 할게요':'그대로 두기')+'</button>'+
+    (me?'<button data-action="loc-clear" style="width:100%;margin-top:8px;padding:12px;border:none;background:none;color:#C0476B;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit">저장된 위치 지우기</button>':'')+
+    '<div style="height:24px"></div>';
+  setActiveTab("#/settings");
 }
+/* 동네 이름 → 좌표 */
+function pdLocSearch(){
+  var q=(($("#loc-q")||{}).value||"").trim();
+  if(!q){ toast("동네 이름을 적어주세요"); return; }
+  toast("찾는 중…");
+  fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ko&q="+encodeURIComponent(q),
+    {headers:{"Accept":"application/json"}})
+    .then(function(r){ return r.json(); })
+    .then(function(arr){
+      var hit=(arr&&arr[0])||null;
+      if(!hit){ toast("그 동네를 찾지 못했어요"); return; }
+      pdMyLocSet(parseFloat(hit.lat), parseFloat(hit.lon), q);
+      pdLocAskedSet();
+      toast("📍 "+q+" 으로 설정했어요");
+      renderLoc(false);
+    })
+    .catch(function(){ toast("검색에 실패했어요. 잠시 후 다시 시도해주세요"); });
+}
+/* 카테고리 칩 줄 */
 /* 카테고리 칩 줄 */
 function pdCatChipsHtml(list){
   var cats=[]; list.forEach(function(s){ if(s.cat && cats.indexOf(s.cat)<0) cats.push(s.cat); });
@@ -2001,58 +2047,10 @@ function storeRowNear(s){
 }
 /* 홈 = 발견 랜딩 (인사·카테고리·AI·인기·신규·최저가·내가게) */
 function renderHome(){
-  var ss=stores();
-  var aiBadge=getKey()?'<span class="ai-on">🔑 '+(getProvider()==="gemini"?"Gemini":"Claude")+' 연결됨</span>':'<span class="ai-off" data-action="nav" data-to="#/settings">🔑 키 넣으면 더 정확</span>';
-  var owned=(typeof ownedSlugs==="function"?ownedSlugs():[]).map(findStore).filter(Boolean);
-  var me=pdMyLoc();
-
-  var filtered = window._catFilter ? ss.filter(function(s){ return s.cat===window._catFilter; }) : ss;
-  var near = pdSortByDist(filtered);
-  var mapList = near.slice(0, 40);
-  var listed = near.slice(0, 20);
-
-  var headTitle = me ? "🧭 내 주변 가게" : "🏪 등록된 가게";
-  var headSub = me
-    ? '가까운 순으로 '+near.length+'곳'
-    : (near.length+'곳 · 위치를 켜면 가까운 순으로 정렬돼요');
-
-  var cards = listed.length
-    ? listed.map(storeRowNear).join("")
-    : '<div class="empty"><div class="ee">🏪</div>'+(window._catFilter?'이 업종의 가게가 아직 없어요':'등록된 가게가 아직 없어요')+'</div>';
-
-  var more = near.length>listed.length
-    ? '<button data-action="nav" data-to="#/stores" style="width:100%;margin-top:10px;padding:13px;border:1.5px solid var(--line);border-radius:14px;background:#fff;color:var(--grape);font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit">가게 '+near.length+'곳 전체 보기 ›</button>'
-    : '';
-
-  var html=
-    '<div class="ai-input"><div class="ai-cap">✨ AI 주문·검색 '+aiBadge+'</div>'+
-      '<textarea id="aiq" placeholder="예: 근처 횟집 찾아줘 / 스타벅스 아아 톨 주문"></textarea>'+
-      '<div class="bar"><button class="mic" data-action="ai-voice" id="micBtn">🎙️</button><button class="send" data-action="ai-run">AI로 진행 ✨</button></div></div>'+
-    '<div id="aiResult"></div>'+
-
-    pdLocBarHtml()+
-    '<div id="pdMap" style="height:210px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#EDEBF2;margin-bottom:12px"></div>'+
-
-    pdCatChipsHtml(ss)+
-
-    '<div style="display:flex;align-items:baseline;gap:8px;margin:2px 4px 10px">'+
-      '<div class="sec-t" style="margin:0">'+headTitle+'</div>'+
-      '<div style="font-size:11.5px;color:var(--sub);font-weight:700">'+headSub+'</div></div>'+
-    '<div class="srowlist">'+cards+'</div>'+
-    more+
-
-    mHomeSellSection()+
-    '<div class="match-banner" data-action="nav" data-to="#/match" style="margin-top:14px"><div class="mb-e">🎯</div><div><div class="mb-h">AI 매칭 마켓</div><div class="mb-s">팔 값·살 값을 등록하면 AI가 가장 가까운 상대를 찾아줘요</div></div><div class="mb-go">›</div></div>'+
-    pdOpenEntryHtml(owned.length)+
-    '<div style="height:20px"></div>';
-
-  $("#view").innerHTML=html;
+  /* 첫화면은 쇼핑입니다. 가게 목록·지도는 아래 상점 탭에 있습니다. */
+  $("#view").innerHTML = shopBodyHtml() + mHomeSellSection() + '<div style="height:20px"></div>';
   setActiveTab("#/");
-  pdRenderMap(mapList);
   pdDirRefresh(false);
-  pdGeocodeStores();
-  /* 권한을 이미 준 사람은 묻지 않고 바로 가까운 순으로 보여줍니다 */
-  pdLocAuto(function(got){ if(got && (location.hash==="#/"||location.hash==="")) renderHome(); });
 }
 /* ── ① 입점 입구 ────────────────────────────────────────────
    처음 온 사장님이 "내 가게를 여기 만들 수 있다"는 걸 알 방법이 없었습니다.
@@ -2134,7 +2132,6 @@ function renderStores(){
       '<textarea id="aiq" placeholder="예: 스타벅스 아아 톨 주문 / 근처 치킨집 찾아줘"></textarea>'+
       '<div class="bar"><button class="mic" data-action="ai-voice" id="micBtn">🎙️</button><button class="send" data-action="ai-run">AI로 진행 ✨</button></div></div>'+
     '<div id="aiResult"></div>'+
-    pdLocBarHtml()+
     '<div id="pdMap" style="height:200px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#EDEBF2;margin-bottom:12px"></div>'+
     dirBar+
     filterBar+
@@ -2668,7 +2665,7 @@ function mOpenChat(mineId, oppId){
   location.hash="#/talk/room/"+id;
 }
 
-function renderShop(){
+function shopBodyHtml(){
   ensureMyshop();
   var ss=shops();
   var blocks=ss.map(function(sh){
@@ -2685,8 +2682,7 @@ function renderShop(){
     }).join("");
     return '<div class="sec-t">'+sh.emoji+' '+sh.name+(sh.mine?' <span class="badge-mine">내 상점</span>':'')+'</div>'+items;
   }).join("");
-  $("#view").innerHTML =
-    '<div class="ai-input"><div class="ai-cap">🛍️ AI 쇼핑 '+(getKey()?'<span class="ai-on">🔑 '+(getProvider()==="gemini"?"Gemini":"Claude")+'</span>':'<span class="ai-off" data-action="nav" data-to="#/settings">🔑 키 넣으면 더 정확</span>')+'</div>'+
+  return '<div class="ai-input"><div class="ai-cap">🛍️ AI 쇼핑 '+(getKey()?'<span class="ai-on">🔑 '+(getProvider()==="gemini"?"Gemini":"Claude")+'</span>':'<span class="ai-off" data-action="nav" data-to="#/settings">🔑 키 넣으면 더 정확</span>')+'</div>'+
       '<textarea id="aiq" placeholder="예: 쿠팡에서 아이폰 17 Pro 256GB 최저가로 담아줘"></textarea>'+
       '<div class="bar"><button class="mic" data-action="ai-voice" id="micBtn">🎙️</button>'+
       '<button class="send" data-action="ai-run">AI로 쇼핑 진행 🛒</button></div></div>'+
@@ -2697,6 +2693,9 @@ function renderShop(){
     '</div>'+
     '<div id="aiResult"></div>'+
     blocks;
+}
+function renderShop(){
+  $("#view").innerHTML = shopBodyHtml();
   setActiveTab("#/shop");
 }
 
@@ -4025,6 +4024,16 @@ function renderSettings(){
       '</div></div>'+
 
     /* ── 약관 · 계정 ───────────────────────────────────────── */
+    '<div style="font-size:12.5px;font-weight:800;color:var(--sub);letter-spacing:.5px;margin:22px 4px 8px">📍 위치</div>'+
+    '<div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px">'+
+      '<button data-action="nav" data-to="#/loc" style="width:100%;display:flex;align-items:center;gap:11px;text-align:left;padding:13px;border-radius:13px;border:1px solid var(--line);background:#F7F7FA;cursor:pointer;font-family:inherit">'+
+        '<span style="font-size:24px;flex-shrink:0">📍</span>'+
+        '<span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:800;color:var(--ink)">내 위치 설정</span>'+
+        '<span style="display:block;font-size:12px;color:'+(pdMyLoc()?'#16a34a':'var(--sub)')+';margin-top:2px">'+
+          (pdMyLoc()?('✅ '+escapeHtml(pdMyLoc().label||"설정됨")):'미설정 · 켜면 가까운 가게부터 보여요')+'</span></span>'+
+        '<span style="color:var(--sub);font-size:17px">›</span>'+
+      '</button>'+
+    '</div>'+
     '<div style="font-size:12.5px;font-weight:800;color:var(--sub);letter-spacing:.5px;margin:22px 4px 8px">📄 약관 · 계정</div>'+
     '<div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px">'+
       '<button data-action="nav" data-to="#/privacy" style="width:100%;display:flex;align-items:center;gap:11px;text-align:left;padding:13px;margin-bottom:8px;border-radius:13px;border:1px solid var(--line);background:#F7F7FA;cursor:pointer;font-family:inherit">'+
@@ -5107,7 +5116,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v13 · 좌표 비노출</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v14 · 쇼핑 첫화면·위치탭</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -6944,7 +6953,12 @@ document.addEventListener("click", function(e){
   if(a==="key-bridge"){ pdBridgeRequest(); return; }
   if(a==="new-store"){ renderNewStore(); return; }
   if(a==="leave-run"){ pdLeaveRun(); return; }
-  if(a==="loc-ask"){ pdAskLoc(function(got){ if(got) router(); }); return; }
+  if(a==="loc-gps"){
+    pdAskLoc(function(got){ if(got){ pdLocAskedSet(); renderLoc(false); } });
+    return; }
+  if(a==="loc-search"){ pdLocSearch(); return; }
+  if(a==="loc-skip"){ pdLocAskedSet(); toast(pdMyLoc()?"위치를 그대로 뒀어요":"나중에 설정에서 켜실 수 있어요"); location.hash="#/"; return; }
+  if(a==="loc-clear"){ DB.set("fl_myloc",""); toast("저장된 위치를 지웠어요"); renderLoc(false); return; }
   if(a==="home-cat"){ window._catFilter=el.getAttribute("data-c")||""; router(); return; }
   if(a==="dir-refresh"){
     toast("가게 목록을 가져오는 중…");
@@ -7248,7 +7262,23 @@ function podoaiHome(){ try{ sessionStorage.removeItem('from_podoai'); }catch(e){
 try{ sanMigrate(); }catch(e){}
 try{ pdMigrateCoordArea(); }catch(e){}
 try{ pdStartPolling(); }catch(e){}
+/* 처음 오신 분께는 위치 설정 화면을 한 번 띄웁니다.
+   QR·주문 링크로 바로 들어온 경우(해시가 있는 경우)는 건드리지 않습니다. */
+try{
+  var _h0=(location.hash||"").replace(/^#\/?/,"");
+  if(!_h0 && !pdLocAsked() && !pdMyLoc() && !pdIsBridgeMode()){ location.hash="#/loc/first"; }
+}catch(e){}
 router();
+/* 어느 화면으로 들어왔든 가게 목록은 받아둡니다.
+   (위치 화면에 머무는 동안 목록을 못 받으면 상점 탭이 비어 보입니다) */
+try{ pdDirRefresh(false); }catch(e){}
+/* 이미 위치 권한을 준 분은 묻지 않고 채워 넣습니다 */
+try{
+  pdLocAuto(function(got){
+    if(!got) return;
+    if((location.hash||"").indexOf("#/loc")===0) renderLoc(location.hash.indexOf("first")>0);
+  });
+}catch(e){}
 try{ flStart(); flLangStatus(); }catch(e){}
 </script>
 </body>
