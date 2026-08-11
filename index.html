@@ -1623,6 +1623,7 @@ function router(){
   if(head==="ai") return renderHome();
   if(head==="stores") return renderStores();
   if(head==="register") return renderRegChoice();
+  if(head==="open"||head==="join") return renderOpen();
   if(head==="orders") return renderOrders();
   if(head==="shop") return renderShop();
   if(head==="match") return renderMatch(parts[1]||"sell");
@@ -1642,7 +1643,7 @@ function setActiveTab(h){
   ["home","talk","stores","reg","shop","settings"].forEach(function(t){ var b=$("#tab-"+t); if(b) b.classList.remove("on"); });
   if(h.indexOf("#/talk")===0){ var tk=$("#tab-talk"); if(tk) tk.classList.add("on"); return; }
   if(h.indexOf("#/stores")===0||h.indexOf("#/cafe/")===0||h.indexOf("#/order")===0||h.indexOf("#/m/")===0||h.indexOf("#/menu")===0) { var ts=$("#tab-stores"); if(ts) ts.classList.add("on"); }
-  else if(h.indexOf("#/register")===0||h.indexOf("#/sell")===0||h.indexOf("#/admin")===0) { var rg=$("#tab-reg"); if(rg) rg.classList.add("on"); }
+  else if(h.indexOf("#/register")===0||h.indexOf("#/sell")===0||h.indexOf("#/admin")===0||h.indexOf("#/open")===0) { var rg=$("#tab-reg"); if(rg) rg.classList.add("on"); }
   else if(h.indexOf("#/shop")===0||h.indexOf("#/p/")===0||h.indexOf("#/buy/")===0) { var sb2=$("#tab-shop"); if(sb2) sb2.classList.add("on"); }
   else if(h.indexOf("#/collect")===0||h.indexOf("#/settings")===0) { var st=$("#tab-settings"); if(st) st.classList.add("on"); }
   else { var hm=$("#tab-home"); if(hm) hm.classList.add("on"); }
@@ -1761,9 +1762,59 @@ function renderHome(){
       '<div class="bar"><button class="mic" data-action="ai-voice" id="micBtn">🎙️</button><button class="send" data-action="ai-run">AI로 진행 ✨</button></div></div>'+
     '<div id="aiResult"></div>'+
     mHomeSellSection()+
+    pdOpenEntryHtml(owned.length)+
     '<div style="height:20px"></div>';
   $("#view").innerHTML=html;
   setActiveTab("#/");
+  pdDirRefresh(false);
+}
+/* ── ① 입점 입구 ────────────────────────────────────────────
+   처음 온 사장님이 "내 가게를 여기 만들 수 있다"는 걸 알 방법이 없었습니다.
+   홈·상점 목록·등록 탭 어디서든 같은 자리로 들어옵니다 → #/open */
+function pdOpenEntryHtml(ownedCount){
+  if(ownedCount>0){
+    return '<div class="bigentry" data-action="go-admin" data-to="#/admin" style="background:linear-gradient(135deg,#6D28D9,#4C1D95);margin-top:16px">'+
+      '<div class="be-e">🏪</div><div class="be-t"><div class="be-h">내 가게 관리</div>'+
+      '<div class="be-s">메뉴·주문·영업상태 관리하기</div></div><div class="be-go">›</div></div>';
+  }
+  return '<div class="bigentry" data-action="nav" data-to="#/open" style="background:linear-gradient(135deg,#6D28D9,#4C1D95);margin-top:16px">'+
+    '<div class="be-e">🏪</div><div class="be-t"><div class="be-h">사장님이신가요? 무료로 입점하기</div>'+
+    '<div class="be-s">가게 이름만 있으면 3분이면 주문 링크·QR까지</div></div><div class="be-go">›</div></div>';
+}
+/* 입점 안내 화면 — 무엇이 필요한지 먼저 알려주고 바로 등록으로 넘깁니다 */
+function renderOpen(){
+  var owned=ownedSlugs().map(findStore).filter(Boolean);
+  var mineBox = owned.length ? (
+    '<div class="field"><label>이미 만든 내 가게</label>'+
+      owned.map(function(st){
+        return '<div class="mini-menu" data-action="switch-store" data-slug="'+escapeHtml(st.slug)+'">'+
+          '<div class="me">'+st.emoji+'</div><div class="mi"><div class="mn">'+escapeHtml(st.name)+'</div>'+
+          '<div class="mu">'+(pdHasPin(st.slug)?'🔒 PIN 설정됨 · 탭하면 관리':'🆕 PIN 설정 필요')+'</div></div><div class="qr">→</div></div>';
+      }).join("")+'</div>'
+  ) : "";
+  function step(n,t,s){
+    return '<div style="display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)">'+
+      '<div style="flex:0 0 auto;width:25px;height:25px;border-radius:50%;background:var(--grape-soft);color:var(--grape);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center">'+n+'</div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:800">'+t+'</div>'+
+      '<div style="font-size:12.5px;color:var(--sub);line-height:1.6;margin-top:2px">'+s+'</div></div></div>';
+  }
+  $("#view").innerHTML =
+    '<div class="hd"><div class="eyebrow">입점 안내</div><h1>🏪 우리 가게를<br>포도다에 올리기</h1>'+
+      '<p>'+(PD_CFG.OPEN_SIGNUP
+        ? '초대코드 없이 <b>누구나 무료로</b> 등록할 수 있어요. 심사도 대기도 없습니다.'
+        : '지금은 초대코드를 받은 분만 등록할 수 있어요.')+'</p></div>'+
+    mineBox+
+    '<div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:6px 15px 12px;margin-bottom:14px">'+
+      step(1,"가게 정보 입력","이름·업종·주소만 있으면 됩니다. 계좌는 나중에 넣어도 돼요.")+
+      step(2,"PIN 정하기","숫자 4~12자리. 이 PIN으로 다른 폰·PC에서도 같은 가게에 들어옵니다.")+
+      step(3,"메뉴 등록","사진이 없으면 이모지로 나갑니다. 메뉴판 사진 한 장이면 AI가 대신 읽어줘요.")+
+      step(4,"주문 링크·QR 받기","QR을 출력해 테이블에 붙이면 손님이 찍어서 바로 주문합니다.")+
+    '</div>'+
+    '<div class="tip" style="margin-bottom:14px">💡 준비물은 <b>가게 이름</b> 하나뿐입니다. 사업자등록증·서류·수수료 없이 시작할 수 있어요.'+
+      (pdApiOn()?'<br>등록하면 <b>모든 손님의 상점 목록</b>에 바로 올라갑니다.':'<br>⚠️ 지금은 서버가 꺼져 있어 이 기기에만 저장됩니다.')+'</div>'+
+    '<button class="cta grape" data-action="new-store" style="margin:0">🏪 지금 가게 만들기</button>'+
+    '<button data-action="nav" data-to="#/admin" style="width:100%;margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:14px;background:#fff;color:var(--sub);font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit">이미 가게가 있어요 · PIN으로 들어가기</button>';
+  setActiveTab("#/register");
 }
 /* 상점 = 전체 가게 리스트 + 검색 (+카테고리 필터) */
 function renderRegChoice(){
@@ -1771,7 +1822,11 @@ function renderRegChoice(){
     '<div class="hd"><div class="eyebrow">등록</div><h1>무엇을 등록할까요?</h1><p>AI 매칭 매물, 쇼핑 상품, 또는 내 가게를 등록하세요.</p></div>'+
     '<div class="bigentry" data-action="nav" data-to="#/match" style="background:linear-gradient(135deg,#10b981,#12b98f);margin-bottom:14px"><div class="be-e">🎯</div><div class="be-t"><div class="be-h">AI 매칭 상품 등록</div><div class="be-s">팔 값·살 값 등록 → AI가 상대 매칭</div></div><div class="be-go">›</div></div>'+
 
-    '<div class="bigentry" data-action="go-admin" data-to="#/admin" style="background:linear-gradient(135deg,#6D28D9,#4C1D95)"><div class="be-e">🏪</div><div class="be-t"><div class="be-h">상점 등록</div><div class="be-s">내 가게·메뉴 등록 (사장님)</div></div><div class="be-go">›</div></div>'+
+    (ownedSlugs().length
+      ? '<div class="bigentry" data-action="go-admin" data-to="#/admin" style="background:linear-gradient(135deg,#6D28D9,#4C1D95)"><div class="be-e">🏪</div><div class="be-t"><div class="be-h">내 가게 관리</div><div class="be-s">메뉴·주문·영업상태 (사장님)</div></div><div class="be-go">›</div></div>'+
+        '<div class="bigentry" data-action="nav" data-to="#/open" style="background:#fff;border:1.5px dashed var(--grape);margin-top:14px"><div class="be-e">➕</div><div class="be-t"><div class="be-h" style="color:var(--grape)">가게 하나 더 열기</div><div class="be-s" style="color:var(--sub)">최대 5개까지 등록할 수 있어요</div></div><div class="be-go" style="color:var(--grape)">›</div></div>'
+      : '<div class="bigentry" data-action="nav" data-to="#/open" style="background:linear-gradient(135deg,#6D28D9,#4C1D95)"><div class="be-e">🏪</div><div class="be-t"><div class="be-h">우리 가게 입점하기</div><div class="be-s">초대코드 없이 무료 등록 · 3분이면 끝</div></div><div class="be-go">›</div></div>'+
+        '<div class="bigentry" data-action="go-admin" data-to="#/admin" style="background:#fff;border:1.5px solid var(--line);margin-top:14px"><div class="be-e">🔒</div><div class="be-t"><div class="be-h" style="color:var(--ink)">이미 가게가 있어요</div><div class="be-s" style="color:var(--sub)">PIN으로 관리자 들어가기</div></div><div class="be-go" style="color:var(--sub)">›</div></div>')+
     '<div class="bigentry" data-action="go-orders" data-kind="all" style="background:linear-gradient(135deg,#4C1D95,#6D28D9);margin-top:14px"><div class="be-e">🧾</div><div class="be-t"><div class="be-h">내 주문 내역</div><div class="be-s">구매확정·송금 관리</div></div><div class="be-go">›</div></div>';
   setActiveTab("#/register");
 }
@@ -1780,12 +1835,19 @@ function renderStores(){
   var filtered = window._catFilter ? list.filter(function(s){return s.cat===window._catFilter;}) : list;
   var cards=filtered.map(storeRowHtml).join("") || '<div class="empty"><div class="ee">🏪</div>해당 가게가 없어요</div>';
   var filterBar = window._catFilter ? ('<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:13px;font-weight:800;color:var(--grape);background:var(--grape-soft);padding:6px 12px;border-radius:10px">'+catEmoji(window._catFilter)+' '+window._catFilter+'</span><button data-action="cat-clear" style="padding:6px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--sub);font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer">✕ 전체 보기</button></div>') : '';
+  var dirBar = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
+      '<div style="flex:1;font-size:12px;color:var(--sub);font-weight:700">🏪 등록된 가게 '+list.length+'곳'+(pdApiOn()?' · 서버 공유 목록':' · 이 기기 목록')+'</div>'+
+      (pdApiOn()?'<button data-action="dir-refresh" style="flex:0 0 auto;padding:7px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--grape);font-size:12px;font-weight:800;font-family:inherit;cursor:pointer">🔄 새로고침</button>':'')+
+      '<button data-action="nav" data-to="#/open" style="flex:0 0 auto;padding:7px 12px;border:1.5px solid var(--grape);border-radius:10px;background:var(--grape-soft);color:var(--grape);font-size:12px;font-weight:800;font-family:inherit;cursor:pointer">＋ 입점</button>'+
+    '</div>';
+  pdDirRefresh(false);
   var aiBadge=getKey()?'<span class="ai-on">🔑 '+(getProvider()==="gemini"?"Gemini":"Claude")+'</span>':'<span class="ai-off" data-action="nav" data-to="#/settings">🔑 키 넣으면 더 정확</span>';
   $("#view").innerHTML=
     '<div class="ai-input"><div class="ai-cap">✨ AI 주문·검색 '+aiBadge+'</div>'+
       '<textarea id="aiq" placeholder="예: 스타벅스 아아 톨 주문 / 근처 치킨집 찾아줘"></textarea>'+
       '<div class="bar"><button class="mic" data-action="ai-voice" id="micBtn">🎙️</button><button class="send" data-action="ai-run">AI로 진행 ✨</button></div></div>'+
     '<div id="aiResult"></div>'+
+    dirBar+
     filterBar+
     '<div class="srowlist" id="storeList">'+cards+'</div>';
   setActiveTab("#/stores");
@@ -1853,7 +1915,9 @@ function renderStore(slug){
       '<div class="pr">'+priceText(m)+'</div></div>'+
       '<div class="go"'+(off?' style="color:var(--sub)"':'')+'>'+(off?'·':'›')+'</div></div>';
   }).join("");
-  if(!listed.length) menus = '<div class="empty"><div class="ee">🍽️</div>공개된 메뉴가 아직 없어요</div>';
+  if(!listed.length) menus = (s._light && pdApiOn())
+    ? '<div class="empty"><div class="ee">⏳</div>메뉴를 불러오는 중…</div>'
+    : '<div class="empty"><div class="ee">🍽️</div>공개된 메뉴가 아직 없어요</div>';
   $("#view").innerHTML =
     '<div class="back" data-action="nav" data-to="#/">‹ 홈</div>'+
     '<div class="shero'+(closed?' rest':'')+'"><div class="e">'+s.emoji+'</div><h2>'+escapeHtml(s.name)+(closed?' <span class="badge-rest">휴무</span>':'')+'</h2>'+
@@ -2894,7 +2958,9 @@ var PD_CFG = {
   APP_ORIGIN: "https://pododa.kr",           /* 정식 서비스 주소 */
   APP_ORIGINS: ["https://pododa.kr","https://www.pododa.kr","https://pododa.pages.dev"],  /* 키를 받을 수 있는 주소들 */
   BRIDGE_ORIGIN: "https://podoya.ai.kr",     /* 포도야 키를 읽어올 수 있는 기존 배포 위치 */
-  SESSION_HOURS: 12
+  SESSION_HOURS: 12,
+  OPEN_SIGNUP: true,     /* true = 자유 등록(초대코드 없이 누구나 입점) · false = 초대코드 필요 */
+  DIR_TTL_SEC: 90        /* 가게 목록을 서버에서 다시 받아오는 최소 간격(초) */
 };
 function pdApiOn(){ return !!(PD_CFG.API_BASE && PD_CFG.API_BASE.indexOf("http")===0); }
 
@@ -3171,6 +3237,81 @@ function pdPullStore(slug, force){
     return true;
   });
 }
+/* ── ③ 가게 목록 서버 공유 (디렉터리) ─────────────────────────
+   지금까지 fl_stores 는 그 폰 안에만 있었습니다.
+   → 사장님이 등록한 가게가 다른 손님 폰에는 보이지 않았습니다.
+   서버의 /stores 목록을 받아 로컬 목록에 "합쳐" 넣습니다.
+   · 내가 주인인 가게(ownedSlugs)는 절대 덮어쓰지 않습니다.
+   · 목록은 가벼운 정보(이름·업종·지역)만 옵니다. 메뉴 전체는 가게를 열 때 pdPullStore 가 받아옵니다.
+   · 서버에 /stores 가 아직 없으면(404) 조용히 아무 것도 하지 않습니다. */
+function pdDirLast(){ try{ return parseInt(DB.get("fl_dir_at")||"0",10)||0; }catch(e){ return 0; } }
+function pdDirLastSet(v){ DB.set("fl_dir_at", String(v||0)); }
+var _pdDirBusy=false;
+function pdPullDirectory(force){
+  if(!pdApiOn()) return Promise.resolve(false);
+  if(_pdDirBusy) return Promise.resolve(false);
+  if(!force && (Date.now()-pdDirLast()) < (PD_CFG.DIR_TTL_SEC*1000)) return Promise.resolve(false);
+  _pdDirBusy=true;
+  return pdFetch("/stores", {timeout:9000}).then(function(r){
+    _pdDirBusy=false;
+    if(!r || !r.ok || !r.data) return false;
+    var list = r.data.stores || r.data.list || [];
+    if(!Array.isArray(list)) return false;
+    pdDirLastSet(Date.now());
+
+    var ss=stores(), mine=ownedSlugs(), ch=false;
+    var bySlug={}; ss.forEach(function(s,i){ bySlug[s.slug]=i; });
+
+    list.forEach(function(d){
+      if(!d || !d.slug) return;
+      if(mine.indexOf(d.slug)>=0) return;              /* 내 가게는 내 기기 것이 우선 */
+      var idx=bySlug[d.slug];
+      if(idx===undefined){
+        /* 처음 보는 가게 — 목록에 새로 추가 (메뉴는 열 때 받아옵니다) */
+        ss.push({
+          slug: d.slug,
+          name: d.name || "새 가게",
+          emoji: d.emoji || "🏪",
+          cat: d.cat || "기타",
+          area: d.area || "",
+          paused: !!d.paused,
+          menus: Array.isArray(d.menus) ? d.menus : [],
+          reviews: [],
+          _light: !(Array.isArray(d.menus) && d.menus.length),
+          _menuCount: (typeof d.menuCount==="number") ? d.menuCount : (Array.isArray(d.menus)?d.menus.length:0)
+        });
+        ch=true;
+      } else {
+        /* 이미 있는 가게 — 겉정보만 최신으로 (메뉴·리뷰는 건드리지 않음) */
+        var s=ss[idx];
+        if(d.name && s.name!==d.name){ s.name=d.name; ch=true; }
+        if(d.emoji && s.emoji!==d.emoji){ s.emoji=d.emoji; ch=true; }
+        if(d.cat && s.cat!==d.cat){ s.cat=d.cat; ch=true; }
+        if(d.area && s.area!==d.area){ s.area=d.area; ch=true; }
+        if(typeof d.paused==="boolean" && !!s.paused!==d.paused){ s.paused=d.paused; ch=true; }
+        if(typeof d.menuCount==="number" && s._menuCount!==d.menuCount){ s._menuCount=d.menuCount; ch=true; }
+      }
+    });
+    if(ch){ _pdSyncing=true; saveStores(ss); _pdSyncing=false; }
+    return ch;
+  }).catch(function(){ _pdDirBusy=false; return false; });
+}
+/* 화면을 열 때 조용히 새로고침 — 바뀐 게 있을 때만 다시 그립니다 */
+function pdDirRefresh(force, rerender){
+  pdPullDirectory(force).then(function(ch){
+    if(!ch) return;
+    var h=location.hash||"#/";
+    if(rerender) { try{ rerender(); }catch(e){} return; }
+    if(h==="#/"||h==="#") renderHome();
+    else if(h.indexOf("#/stores")===0) renderStores();
+  });
+}
+/* 내 가게를 목록에 올립니다 (등록 직후 1회). /store/save 가 서버 목록도 갱신합니다. */
+function pdPublishStore(slug){
+  if(!pdApiOn()) return Promise.resolve(false);
+  return pdPushStore(slug).then(function(ok){ pdDirLastSet(0); return ok; });
+}
+
 /* 저장이 잦으므로 조금 묶어서 보냅니다 */
 var _pdSaveTimer=null, _pdSyncing=false;
 function pdStoreChanged(){
@@ -4293,7 +4434,8 @@ function renderNewStore(){
   var selCss='width:100%;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;background:#fff;font-family:inherit;color:#222;-webkit-appearance:menulist;appearance:menulist';
   $("#view").innerHTML =
     '<div class="hd"><div class="eyebrow">상점 등록</div><h1>🏪 새 상점 만들기</h1>'+
-      '<p>내 상점을 최대 5개까지 등록할 수 있어요. (현재 '+n+'/5)</p></div>'+
+      '<p>'+(n?('내 상점을 최대 5개까지 등록할 수 있어요. (현재 '+n+'/5)')
+             :'가게 이름만 넣으면 됩니다. 나머지는 나중에 고쳐도 돼요.')+'</p></div>'+
     ownedList+
     (full?'<div class="tip" style="margin-bottom:12px">⚠️ 상점은 최대 5개까지예요. 위 목록에서 하나를 삭제하면 더 만들 수 있어요.</div>':"")+
     '<div class="field"><label>상점 이름</label><input id="ns-name" placeholder="예: 포도카페 강남점"></div>'+
@@ -4313,8 +4455,8 @@ function renderNewStore(){
       '<input id="ns-acct" placeholder="계좌번호 (- 없이 숫자만)" inputmode="numeric">'+
       '<div class="hint">입력하면 주문 후 손님이 <b>토스</b>로 이 계좌·금액까지 자동 채워 송금해요. (카카오·네이버페이는 앱 열기 + 정보 복사)</div></div>'+
     '<div style="display:flex;gap:9px;margin-top:4px">'+
-      '<button data-action="nav" data-to="#/admin" style="flex:0 0 auto;background:#fff;color:var(--sub);border:1.5px solid var(--line);border-radius:16px;padding:16px 18px;font-weight:800;cursor:pointer">취소</button>'+
-      '<button class="cta grape" data-action="create-store" style="flex:1;margin:0'+(full?';opacity:.5':'')+'">상점 만들기</button>'+
+      '<button data-action="nav" data-to="'+(n?'#/admin':'#/open')+'" style="flex:0 0 auto;background:#fff;color:var(--sub);border:1.5px solid var(--line);border-radius:16px;padding:16px 18px;font-weight:800;cursor:pointer">취소</button>'+
+      '<button class="cta grape" data-action="create-store" style="flex:1;margin:0'+(full?';opacity:.5':'')+'">'+(n?'상점 만들기':'만들고 PIN 정하기')+'</button>'+
     '</div>';
   setActiveTab("#/admin");
 }
@@ -4392,7 +4534,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v9 · 동기화·초대</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v10 · 자유입점·목록공유</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -4481,8 +4623,10 @@ function renderOwnerAuth(slug, forceSet, forceLogin){
     (first
       ? '<div class="field"><label>새 PIN (숫자 4~12자리)</label><input id="pin-new" type="password" inputmode="numeric" autocomplete="new-password" placeholder="••••"></div>'+
         '<div class="field"><label>PIN 다시 입력</label><input id="pin-new2" type="password" inputmode="numeric" autocomplete="new-password" placeholder="••••"></div>'+
-        (pdApiOn()?'<div class="field"><label>초대코드</label><input id="pin-invite" placeholder="예: A1B2C3D4" autocapitalize="characters">'+
-          '<div class="hint">가게를 처음 등록할 때 필요합니다. 없으면 운영자에게 요청하세요.</div></div>':'')+
+        ((pdApiOn() && !PD_CFG.OPEN_SIGNUP)
+          ? '<div class="field"><label>초대코드</label><input id="pin-invite" placeholder="예: A1B2C3D4" autocapitalize="characters">'+
+            '<div class="hint">가게를 처음 등록할 때 필요합니다. 없으면 운영자에게 요청하세요.</div></div>'
+          : '<div class="tip" style="margin-bottom:12px">🎉 <b>자유 등록</b> — 초대코드도, 심사도 없어요. PIN만 정하면 바로 시작합니다.</div>')+
         '<button data-action="owner-pin-set" data-slug="'+escapeHtml(slug)+'" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#6D28D9,#4C1D95);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">PIN 설정하고 시작</button>'+
         '<div class="tip" style="margin-top:12px">⚠️ PIN은 이 기기에만 저장됩니다. 설정 직후 나오는 <b>복구코드</b>를 꼭 적어두세요. 잊으면 되돌릴 방법이 없습니다.</div>'
       : '<div class="field"><label>PIN</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••"></div>'+
@@ -4511,7 +4655,7 @@ function ownerPinSet(slug){
   if(!pdApiOn()){                                  /* 로컬 전용 모드 */
     var r0=pdSetPin(slug, a);
     if(!r0.ok){ toast(r0.msg); return; }
-    pdLogin(slug);
+    pdLogin(slug); DB.set("fl_pin_setup","");
     var ow0=ownedSlugs(); if(ow0.indexOf(slug)<0){ ow0.push(slug); saveOwned(ow0); }
     alert("복구코드: "+r0.recovery+"\n\n반드시 적어두세요. 이 코드로만 PIN을 되돌릴 수 있습니다.");
     toast("PIN을 설정했어요"); renderAdmin(); return;
@@ -4520,16 +4664,24 @@ function ownerPinSet(slug){
   /* 서버 모드 — 서버 등록이 성공해야 진짜 설정된 것입니다 */
   toast("서버에 등록 중…");
   var inv=(($("#pin-invite")||{}).value||"").toUpperCase().trim();
-  pdFetch("/owner/register",{method:"POST",body:{slug:slug,pin:a,invite:inv}}).then(function(r){
+  pdOwnerRegister(slug, a, inv);
+}
+/* ② 자유 등록 — 초대코드 없이 보냅니다.
+   서버가 아직 초대코드를 요구하면(403) 그때만 한 번 물어보고 다시 시도합니다.
+   (워커를 자유 등록으로 바꾸기 전에도 화면이 막히지 않게 하는 안전장치입니다) */
+function pdOwnerRegister(slug, pin, invite){
+  var body={slug:slug, pin:pin};
+  if(invite) body.invite=invite;
+  pdFetch("/owner/register",{method:"POST",body:body}).then(function(r){
     if(r.ok && r.data && r.data.ok){
-      pdSetPin(slug, a);                            /* 이 기기에도 보관 */
-      pdLogin(slug, r.data.token);
+      pdSetPin(slug, pin);                          /* 이 기기에도 보관 */
+      pdLogin(slug, r.data.token); DB.set("fl_pin_setup","");
       var ow=ownedSlugs(); if(ow.indexOf(slug)<0){ ow.push(slug); saveOwned(ow); }
       alert("복구코드: "+r.data.recovery+"\n\n반드시 적어두세요.\n다른 기기에서도 이 PIN으로 들어올 수 있습니다.");
       toast("PIN을 설정했어요");
       pdSeenMark(); pdPushSubscribe();
       pdSyncStock(slug); var _s2=findStore(slug); if(_s2) pdSyncOrders(_s2);
-      pdPushStore(slug);                       /* 지금 기기의 메뉴를 서버에 올려둡니다 */
+      pdPublishStore(slug);                    /* 메뉴를 올리고 공유 목록에도 띄웁니다 */
       renderAdmin(); return;
     }
     if(r.status===409){
@@ -4537,8 +4689,12 @@ function ownerPinSet(slug){
       renderOwnerAuth(slug, false, true);           /* 로그인 화면 강제 */
       return;
     }
-    if(r.status===403){                             /* 초대코드 문제 */
-      alert(((r.data&&r.data.error)||"초대코드가 필요합니다")+"\n\n가게를 처음 등록하려면 운영자에게 초대코드를 받아주세요.");
+    if(r.status===403){                             /* 서버가 아직 초대제일 때만 여기 옵니다 */
+      if(!invite){
+        var code=prompt("이 서버는 아직 초대코드가 필요합니다.\n초대코드를 입력해주세요. (없으면 취소)");
+        if(code && String(code).trim()){ pdOwnerRegister(slug, pin, String(code).toUpperCase().trim()); return; }
+      }
+      alert(((r.data&&r.data.error)||"초대코드가 필요합니다")+"\n\n워커의 /owner/register 에서 초대코드 검사를 끄면 누구나 바로 입점할 수 있어요.");
       return;
     }
     alert("서버에 등록하지 못했어요\n\n"+((r&&r.data&&r.data.error)||("HTTP "+((r&&r.status)||"?"))));
@@ -4554,7 +4710,7 @@ function ownerPinSubmit(slug){
       if(r.ok&&r.data&&r.data.ok){
         _pinFail[slug]={n:0,until:0};
         if(!pdHasPin(slug)) pdSetPin(slug,pin);        /* 이 기기에도 저장 */
-        pdLogin(slug, r.data.token);
+        pdLogin(slug, r.data.token); DB.set("fl_pin_setup","");
         toast("로그인했어요"); pdSeenMark(); pdPushSubscribe();
         pdSyncStock(slug); var _st=findStore(slug); if(_st) pdSyncOrders(_st);
         pdPullStore(slug).then(function(ch){ if(ch){ toast("다른 기기의 메뉴를 가져왔어요"); renderAdmin(); } });
@@ -4572,7 +4728,7 @@ function ownerPinSubmit(slug){
   }
   if(pdCheckPin(slug, pin)){
     _pinFail[slug]={n:0,until:0};
-    pdLogin(slug);
+    pdLogin(slug); DB.set("fl_pin_setup","");
     toast("로그인했어요");
     pdSeenMark(); pdPushSubscribe();
     renderAdmin();
@@ -4618,16 +4774,41 @@ function ownerRecover(slug){
   });
 }
 function renderAdminLogin(){
+  /* 방금 가게를 만든 참이면 곧장 PIN 설정으로 (목록으로 되돌아가면 길을 잃습니다) */
+  var pend=DB.get("fl_pin_setup")||"";
+  if(pend && findStore(pend)){ return renderOwnerAuth(pend, true); }
+  if(pend) DB.set("fl_pin_setup","");
+
+  var mine=ownedSlugs(), all=stores();
+  var mineStores=mine.map(findStore).filter(Boolean);
+  var others=all.filter(function(s){ return mine.indexOf(s.slug)<0; });
+
+  function row(s){
+    return '<div class="mini-menu" data-action="admin-login" data-slug="'+escapeHtml(s.slug)+'">'+
+      '<div class="me">'+s.emoji+'</div><div class="mi"><div class="mn">'+escapeHtml(s.name)+'</div>'+
+      '<div class="mu">'+(pdHasPin(s.slug)?'🔒 PIN 설정됨':'🆕 첫 로그인 · PIN 설정 필요')+'</div></div><div class="qr">→</div></div>';
+  }
   $("#view").innerHTML =
     '<div class="hd"><div class="eyebrow">사장님 전용</div><h1>가게 등록 &<br>메뉴 관리</h1>'+
-      '<p>가게를 고르고 PIN으로 들어갑니다. 처음이라면 PIN을 새로 정하게 됩니다.</p></div>'+
-    '<div class="field"><label>내 가게 선택 (데모 로그인)</label></div>'+
-    stores().map(function(s){
-      return '<div class="mini-menu" data-action="admin-login" data-slug="'+escapeHtml(s.slug)+'">'+
-        '<div class="me">'+s.emoji+'</div><div class="mi"><div class="mn">'+escapeHtml(s.name)+'</div>'+
-        '<div class="mu">'+(pdHasPin(s.slug)?'🔒 PIN 설정됨':'🆕 첫 로그인 · PIN 설정 필요')+'</div></div><div class="qr">→</div></div>';
-    }).join("")+
-    '<div class="tip">🆕 <b>신규 가입</b>도 같은 흐름입니다 — 가게 이름·주소 입력 → 슬러그(<code>/cafe/슬러그</code>) 자동 발급 → 메뉴 등록.</div>';
+      '<p>'+(mineStores.length
+        ? '내 가게를 고르고 PIN으로 들어갑니다.'
+        : '아직 만든 가게가 없어요. 아래에서 새로 만들 수 있습니다.')+'</p></div>'+
+
+    /* ① 처음 온 사람이 가게를 만들 입구 — 목록보다 위에 둡니다 */
+    '<div class="bigentry" data-action="new-store" style="background:linear-gradient(135deg,#6D28D9,#4C1D95);margin-bottom:16px">'+
+      '<div class="be-e">➕</div><div class="be-t"><div class="be-h">우리 가게 새로 만들기</div>'+
+      '<div class="be-s">'+(PD_CFG.OPEN_SIGNUP?'초대코드 없이 무료 등록':'초대코드가 필요합니다')+' · 이름만 있으면 시작</div></div>'+
+      '<div class="be-go">›</div></div>'+
+
+    (mineStores.length
+      ? '<div class="field"><label>내 가게 ('+mineStores.length+'/5)</label></div>'+mineStores.map(row).join("")
+      : '')+
+
+    (others.length
+      ? '<div class="field" style="margin-top:14px"><label>다른 가게 (체험용 · 사장님 본인만 PIN을 압니다)</label></div>'+others.map(row).join("")
+      : '')+
+
+    '<div class="tip" style="margin-top:14px">🔒 가게마다 PIN이 따로입니다. PIN을 아는 사람만 그 가게의 메뉴·주문을 볼 수 있어요.</div>';
   setActiveTab("#/admin");
 }
 function renderAdminAdd(s){
@@ -6162,8 +6343,9 @@ document.addEventListener("click", function(e){
   if(a==="owner-pin-set"){ ownerPinSet(el.getAttribute("data-slug")); return; }
   if(a==="owner-force-set"){ renderOwnerAuth(el.getAttribute("data-slug"), true); return; }
   if(a==="owner-recover"){ ownerRecover(el.getAttribute("data-slug")); return; }
-  if(a==="owner-logout"){ pdLogout(); toast("로그아웃했어요"); renderAdminLogin(); return; }
+  if(a==="owner-logout"){ pdLogout(); DB.set("fl_pin_setup",""); toast("로그아웃했어요"); renderAdminLogin(); return; }
   if(a==="owner-back"){
+    DB.set("fl_pin_setup","");   /* 방금 만든 가게라도, 뒤로 가겠다면 목록을 보여줍니다 */
     /* 이미 다른 가게로 로그인 중이면 그 관리자 화면으로 돌아갑니다 */
     if(pdOwnerSlug()) renderAdmin(); else renderAdminLogin();
     return; }
@@ -6188,6 +6370,13 @@ document.addEventListener("click", function(e){
     return; }
   if(a==="key-bridge"){ pdBridgeRequest(); return; }
   if(a==="new-store"){ renderNewStore(); return; }
+  if(a==="dir-refresh"){
+    toast("가게 목록을 가져오는 중…");
+    pdPullDirectory(true).then(function(ch){
+      toast(ch?"새 가게 목록을 받았어요":"이미 최신이에요");
+      if(ch) renderStores();
+    });
+    return; }
   if(a==="go-admin"){ DB.set("fl_admin_tab","add"); if(location.hash!=="#/admin"){ location.hash="#/admin"; } else { renderAdmin(); } return; }
   if(a==="del-store"){
     var dslug=el.getAttribute("data-slug"); var dst=findStore(dslug);
@@ -6234,8 +6423,12 @@ document.addEventListener("click", function(e){
     var ss=stores(); ss.push(newStore); saveStores(ss);
     owned.push(slug); saveOwned(owned);
     DB.set("fl_owner", slug); DB.set("fl_admin_tab","add");
-    toast("🏪 "+nm+" 상점을 만들었어요!");
-    renderAdmin(); return;
+    /* 만들자마자 PIN을 정해야 서버에 올라가고 다른 기기·다른 손님에게 보입니다 */
+    DB.set("fl_pin_setup", slug);
+    toast("🏪 "+nm+" 상점을 만들었어요! 이제 PIN을 정해주세요");
+    if(location.hash!=="#/admin"){ location.hash="#/admin"; }
+    else { renderOwnerAuth(slug, true); }
+    return;
   }
   if(a==="admin-tab"){ if(el.getAttribute("data-v")==="add"){ window._editMenu=null; window._menuPhoto=null; } DB.set("fl_admin_tab", el.getAttribute("data-v")); renderAdmin(); return; }
   if(a==="edit-menu"){ editMenu(el.getAttribute("data-slug"), el.getAttribute("data-id")); return; }
