@@ -1776,6 +1776,7 @@ function renderRegChoice(){
     '<div class="hd"><div class="eyebrow">등록</div><h1>무엇을 등록할까요?</h1><p>AI 매칭 매물, 쇼핑 상품, 또는 내 가게를 등록하세요.</p></div>'+
     '<div class="bigentry" data-action="nav" data-to="#/match" style="background:linear-gradient(135deg,#10b981,#12b98f);margin-bottom:14px"><div class="be-e">🎯</div><div class="be-t"><div class="be-h">AI 매칭 상품 등록</div><div class="be-s">팔 값·살 값 등록 → AI가 상대 매칭</div></div><div class="be-go">›</div></div>'+
 
+    '<div class="bigentry" data-action="nav" data-to="#/sell" style="background:linear-gradient(135deg,#f97316,#ea580c);margin-bottom:14px"><div class="be-e">🏷️</div><div class="be-t"><div class="be-h">쇼핑 상품 등록</div><div class="be-s">사진 올려 상품 등록 → 쇼핑·AI 검색 노출</div></div><div class="be-go">›</div></div>'+
     '<div class="bigentry" data-action="go-admin" data-to="#/admin" style="background:linear-gradient(135deg,#6D28D9,#4C1D95)"><div class="be-e">🏪</div><div class="be-t"><div class="be-h">상점 등록</div><div class="be-s">내 가게·메뉴 등록 (사장님)</div></div><div class="be-go">›</div></div>'+
     '<div class="bigentry" data-action="go-orders" data-kind="all" style="background:linear-gradient(135deg,#4C1D95,#6D28D9);margin-top:14px"><div class="be-e">🧾</div><div class="be-t"><div class="be-h">내 주문 내역</div><div class="be-s">구매확정·송금 관리</div></div><div class="be-go">›</div></div>';
   setActiveTab("#/register");
@@ -3505,6 +3506,36 @@ function pdKeyLinkBanner(lockNote){
 var PD_TERMS_DATE = "2026년 8월 12일";
 
 /* 설정 화면 맨 아래에 붙는 블록 */
+/* 설정 화면 · 알림 카드 — 사장님이 여기서도 켜고 끌 수 있게 합니다 */
+function notiSettingCard(){
+  var perm=pdNotiPerm();
+  if(perm==="unsupported") return "";
+  var slug=pdOwnerSlug();
+  var on=(perm==="granted");
+  var body;
+
+  if(perm==="denied"){
+    body='<div style="font-size:12.5px;color:#C0476B;font-weight:700">🔕 브라우저에서 알림이 차단돼 있어요</div>'+
+      '<div style="font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:5px">'+
+      '주소창 왼쪽 자물쇠 🔒 → 권한 → 알림 → 허용 → 새로고침</div>';
+  } else if(on){
+    body='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<div style="flex:1;min-width:140px">'+
+        '<div style="font-size:13px;font-weight:800;color:#0a7a53">🔔 알림 켜짐</div>'+
+        '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">'+
+          (slug ? (pdApiOn()?'앱을 닫아도 새 주문·문의를 알려드려요.':'앱이 열려 있는 동안 알려드려요.')
+                : '사장님으로 로그인하면 새 주문·문의 알림을 받습니다.')+'</div></div>'+
+      (slug?'<button data-action="noti-test" data-slug="'+escapeHtml(slug)+'" style="padding:9px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--grape);font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit">테스트</button>':'')+
+    '</div>';
+  } else {
+    body='<div style="font-size:13px;font-weight:800">🔔 새 주문·문의 알림</div>'+
+      '<div style="font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:4px">'+
+        '켜두면 주문이나 문의가 들어올 때 폰으로 바로 알려드려요.</div>'+
+      '<button data-action="noti-ask" style="width:100%;margin-top:10px;padding:12px;border:none;border-radius:11px;background:linear-gradient(135deg,#6D28D9,#4C1D95);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit">알림 켜기</button>';
+  }
+  return '<div class="card" style="margin-top:14px"><div class="sec-t" style="margin-top:0">알림</div>'+body+'</div>';
+}
+
 function legalBlock(){
   var slug = pdOwnerSlug();
   return '<div class="card" style="margin-top:14px">'+
@@ -3520,6 +3551,12 @@ function legalBlock(){
         '문의: hasin7jk@gmail.com · 최종 개정 '+PD_TERMS_DATE+'</div>'+
     '</div>'+
     /* 탈퇴는 로그인한 사장님에게만 보여줍니다 */
+    (!slug ? '<div class="card" style="margin-top:14px">'+
+      '<div class="sec-t" style="margin-top:0">가게 탈퇴</div>'+
+      '<div style="font-size:12px;color:var(--sub);line-height:1.65">'+
+        '가게를 탈퇴하려면 먼저 사장님으로 로그인해주세요.</div>'+
+      '<button data-action="nav" data-to="#/admin" style="width:100%;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--grape);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">사장님 로그인하러 가기</button>'+
+    '</div>' : '')+
     (slug ? '<div class="card" style="margin-top:14px;border-color:#F5C6D0">'+
       '<div class="sec-t" style="margin-top:0;color:#C0476B">위험 구역</div>'+
       '<div style="font-size:12px;color:var(--sub);line-height:1.65;margin-bottom:10px">'+
@@ -3783,6 +3820,7 @@ function renderSettings(){
         '<div id="fl-lang-status" data-no-i18n style="margin-top:12px;font-size:11.5px;color:var(--sub);line-height:1.6;font-weight:700">📍</div>'+
         '<div style="margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5">🌐 한국어 외 언어는 홈·포도톡·상점·등록·쇼핑·설정 전체 화면이 자동 번역돼요. <b>API 키 없이도</b> 무료 번역으로 동작합니다. 결과는 이 기기에 저장돼 다음부턴 즉시 표시됩니다.</div>'+
       '</div></div>'+
+    notiSettingCard()+
     legalBlock();
   setActiveTab("#/settings");
   try{ flLangStatus(); }catch(e){}
@@ -4764,7 +4802,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-12 v11 · 약관·탈퇴</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-12 v12 · 알림·등록</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
