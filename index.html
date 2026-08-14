@@ -1612,6 +1612,8 @@ function router(){
   if(pdIsBridgeMode()){ try{ pdBridgeServe(); }catch(e){} return; }
   if(location.hash.indexOf("#/ask/")===0){ return renderAsk(location.hash.slice(6)); }
   if(location.hash==="#/ask"){ return renderAskList(); }
+  if(location.hash==="#/terms"){ askStopPoll(); return renderTerms(); }
+  if(location.hash==="#/privacy"){ askStopPoll(); return renderPrivacy(); }
   askStopPoll();
   var h = location.hash || "#/";
   setRoute(h);
@@ -3496,6 +3498,194 @@ function pdKeyLinkBanner(lockNote){
     '<div style="font-size:10.5px;color:var(--sub);margin-top:7px;line-height:1.5">Podoya가 열린 창이 잠깐 떴다가 닫힙니다. AI 키와 언어·국가 설정만 전달되고, Podoya 데이터는 변경되지 않습니다.</div>'+
   '</div>';
 }
+/* ══════════════════════════════════════════════════════════════
+   약관 · 개인정보처리방침 · 계정 탈퇴
+   ══════════════════════════════════════════════════════════════ */
+
+var PD_TERMS_DATE = "2026년 8월 12일";
+
+/* 설정 화면 맨 아래에 붙는 블록 */
+function legalBlock(){
+  var slug = pdOwnerSlug();
+  return '<div class="card" style="margin-top:14px">'+
+      '<div class="sec-t" style="margin-top:0">약관 · 정책</div>'+
+      '<div style="display:flex;flex-direction:column;gap:2px">'+
+        '<button data-action="nav" data-to="#/terms" style="width:100%;text-align:left;padding:13px 4px;border:none;background:none;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;font-family:inherit;display:flex;align-items:center">'+
+          '<span style="flex:1">📄 이용약관</span><span style="color:var(--sub)">›</span></button>'+
+        '<div style="height:1px;background:var(--line)"></div>'+
+        '<button data-action="nav" data-to="#/privacy" style="width:100%;text-align:left;padding:13px 4px;border:none;background:none;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;font-family:inherit;display:flex;align-items:center">'+
+          '<span style="flex:1">🔒 개인정보처리방침</span><span style="color:var(--sub)">›</span></button>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--sub);margin-top:10px;line-height:1.6">'+
+        '문의: hasin7jk@gmail.com · 최종 개정 '+PD_TERMS_DATE+'</div>'+
+    '</div>'+
+    /* 탈퇴는 로그인한 사장님에게만 보여줍니다 */
+    (slug ? '<div class="card" style="margin-top:14px;border-color:#F5C6D0">'+
+      '<div class="sec-t" style="margin-top:0;color:#C0476B">위험 구역</div>'+
+      '<div style="font-size:12px;color:var(--sub);line-height:1.65;margin-bottom:10px">'+
+        '<b>'+escapeHtml(slug)+'</b> 가게를 서비스에서 완전히 지웁니다. '+
+        '메뉴·주문·재고·문의 대화가 모두 삭제되며 <b>되돌릴 수 없습니다.</b></div>'+
+      '<button data-action="account-delete" data-slug="'+escapeHtml(slug)+'" style="width:100%;padding:13px;border:1.5px solid #C0476B;border-radius:12px;background:#fff;color:#C0476B;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit">'+
+        '🗑️ 가게 탈퇴하기</button>'+
+    '</div>' : '');
+}
+
+/* ── 계정 탈퇴 ────────────────────────────────────────────────
+   PIN 을 다시 확인하고, 서버 기록과 이 기기 데이터를 함께 지웁니다. */
+function accountDelete(slug){
+  if(!slug){ toast("로그인 정보가 없어요"); return; }
+  var st=findStore(slug);
+  var nm=st?st.name:slug;
+
+  if(!confirm("정말 '"+nm+"' 가게를 탈퇴할까요?\n\n메뉴·주문·재고·문의 대화가 모두 삭제되고 되돌릴 수 없습니다."))
+    return;
+
+  var typed=prompt("확인을 위해 가게 주소를 그대로 입력해주세요\n\n"+slug);
+  if(typed===null) return;
+  if(String(typed).trim()!==slug){ toast("가게 주소가 일치하지 않아요"); return; }
+
+  var pin=prompt("본인 확인을 위해 PIN을 입력해주세요");
+  if(pin===null) return;
+  if(!/^[0-9]{4,12}$/.test(String(pin))){ toast("PIN은 숫자 4~12자리예요"); return; }
+
+  function wipeLocal(){
+    try{
+      var ss=stores().filter(function(x){ return x.slug!==slug; });
+      saveStores(ss);
+      var ow=ownedSlugs().filter(function(x){ return x!==slug; });
+      saveOwned(ow);
+      var au=pdAuthAll(); delete au[slug]; pdAuthSave(au);
+      saveOrders(orders().filter(function(o){
+        var s0=(o.items&&o.items[0]&&o.items[0].slug)||o.slug;
+        return s0!==slug;
+      }));
+      pdLogout();
+    }catch(e){}
+  }
+
+  if(!pdApiOn()){                       /* 로컬 전용 모드 */
+    wipeLocal();
+    toast("탈퇴했어요");
+    location.hash="#/";
+    return;
+  }
+
+  toast("탈퇴 처리 중…");
+  pdFetch("/owner/delete",{method:"POST",body:{slug:slug,pin:String(pin)}}).then(function(r){
+    if(r.ok&&r.data&&r.data.ok){
+      wipeLocal();
+      alert("탈퇴가 완료되었습니다.\n\n'"+nm+"' 가게의 서버 기록이 모두 삭제되었습니다.");
+      location.hash="#/";
+      return;
+    }
+    if(r.status===401){ toast("PIN이 맞지 않아요"); return; }
+    if(r.status===429){ toast("요청이 많아요. 잠시 후 다시 시도해주세요"); return; }
+    alert("탈퇴하지 못했어요\n\n"+((r&&r.data&&r.data.error)||("HTTP "+((r&&r.status)||"?"))));
+  });
+}
+
+/* ── 문서 화면 ───────────────────────────────────────────────── */
+function legalPage(title, sections){
+  var html='<button data-action="nav" data-to="#/settings" style="border:none;background:none;color:var(--grape);font-weight:800;font-size:14px;padding:2px 0 10px;cursor:pointer;font-family:inherit">← 설정으로</button>'+
+    '<div class="hd"><div class="eyebrow">포도다</div><h1>'+title+'</h1>'+
+      '<p>최종 개정일 '+PD_TERMS_DATE+'</p></div>';
+  html += sections.map(function(sec){
+    return '<div class="card" style="margin-bottom:10px">'+
+      '<div style="font-size:14px;font-weight:800;color:var(--grape);margin-bottom:7px">'+sec[0]+'</div>'+
+      '<div style="font-size:13px;color:var(--ink);line-height:1.75;white-space:pre-line">'+sec[1]+'</div>'+
+    '</div>';
+  }).join("");
+  html += '<div class="tip" style="margin-top:8px">문의: hasin7jk@gmail.com</div>';
+  $("#view").innerHTML = html;
+  setActiveTab("#/settings");
+}
+
+function renderTerms(){
+  legalPage("📄 이용약관", [
+["제1조 (목적)",
+"이 약관은 포도다(이하 “서비스”)가 제공하는 가게 등록·메뉴 공개·주문 중개·문의 채팅 등 온라인 서비스의 이용조건과 절차, 이용자와 서비스의 권리·의무를 정하는 것을 목적으로 합니다."],
+
+["제2조 (용어의 정의)",
+"1. “사장님”이란 서비스에 가게를 등록하고 메뉴·상품을 판매하는 이용자를 말합니다.\n2. “손님”이란 서비스를 통해 메뉴·상품을 조회하거나 주문하는 이용자를 말합니다.\n3. “가게 주소”란 사장님이 정하는 고유 식별자(slug)로, 공개 주문 링크에 사용됩니다.\n4. “PIN”이란 사장님이 자신의 가게를 관리하기 위해 설정하는 숫자 비밀번호를 말합니다."],
+
+["제3조 (약관의 효력과 변경)",
+"1. 이 약관은 서비스 화면에 게시함으로써 효력이 발생합니다.\n2. 서비스는 필요한 경우 약관을 변경할 수 있으며, 변경 시 적용일자와 변경사유를 명시하여 최소 7일 전에 공지합니다.\n3. 이용자가 변경된 약관에 동의하지 않는 경우 이용을 중단하고 탈퇴할 수 있습니다."],
+
+["제4조 (서비스의 내용)",
+"서비스는 다음을 제공합니다.\n1. 가게·메뉴·상품의 등록과 공개 링크·QR 생성\n2. 손님의 주문 접수와 상태 관리, 재고 차감\n3. 손님과 사장님 간 문의 채팅\n4. 새 주문·문의에 대한 알림(웹푸시)\n5. 기타 서비스가 정하는 부가 기능"],
+
+["제5조 (결제와 정산에 관한 고지)",
+"1. 서비스는 주문 내용을 전달하는 <b>중개 도구</b>이며, 대금 결제는 사장님과 손님이 직접 정한 방법(현장 결제, 계좌이체, 간편결제 앱 등)으로 이루어집니다.\n2. 서비스는 대금을 예치·정산하지 않으며, 결제 과정에 개입하지 않습니다.\n3. 따라서 서비스는 「전자상거래 등에서의 소비자보호에 관한 법률」상 통신판매의 당사자가 아니며, 거래에 대한 책임은 각 거래 당사자에게 있습니다."],
+
+["제6조 (사장님의 의무)",
+"1. 사장님은 실제 운영하는 가게의 정보만 등록해야 하며, 허위·과장 정보를 게시해서는 안 됩니다.\n2. 사장님은 관련 법령(식품위생법, 원산지 표시, 가격 표시 등)을 준수해야 합니다.\n3. 사장님은 주문받은 상품·서비스를 성실히 제공하고, 손님 문의에 신의성실하게 응대해야 합니다.\n4. 사장님은 자신의 PIN과 복구코드를 스스로 관리해야 하며, 유출로 인한 피해에 대해 서비스는 책임지지 않습니다."],
+
+["제7조 (손님의 의무)",
+"1. 손님은 주문 시 정확한 정보를 제공해야 합니다.\n2. 손님은 허위 주문, 반복적인 무단 취소, 문의 채팅을 통한 욕설·협박·광고 전송 등 서비스와 사장님의 업무를 방해하는 행위를 해서는 안 됩니다."],
+
+["제8조 (금지행위)",
+"이용자는 다음 행위를 해서는 안 됩니다.\n1. 타인의 가게 주소를 선점하거나 사칭하는 행위\n2. 자동화 프로그램으로 주문·문의를 대량 발생시키는 행위\n3. 서비스의 취약점을 이용하거나 시스템에 부정 접근하는 행위\n4. 법령이 금지하는 물품·서비스를 등록하거나 거래하는 행위\n5. 타인의 개인정보를 무단으로 수집·이용하는 행위"],
+
+["제9조 (게시물의 관리)",
+"1. 등록된 가게·메뉴 정보와 문의 내용의 저작권과 책임은 작성한 이용자에게 있습니다.\n2. 서비스는 제8조를 위반하거나 법령에 반하는 게시물에 대해 사전 통지 없이 비공개·삭제할 수 있습니다."],
+
+["제10조 (이용 제한과 계약 해지)",
+"1. 서비스는 이용자가 이 약관을 위반한 경우 경고, 일시 정지, 이용계약 해지 조치를 할 수 있습니다.\n2. 이용자는 언제든지 설정 화면의 ‘가게 탈퇴하기’를 통해 이용계약을 해지할 수 있습니다.\n3. 탈퇴 시 해당 가게의 메뉴·주문·재고·문의 기록은 즉시 삭제되며 복구되지 않습니다."],
+
+["제11조 (서비스의 중단)",
+"1. 서비스는 시스템 점검·교체, 통신 두절, 천재지변 등 불가항력의 사유가 있는 경우 서비스 제공을 일시 중단할 수 있습니다.\n2. 서비스는 무료로 제공되며, 중단으로 인한 손해에 대해 고의 또는 중대한 과실이 없는 한 책임을 지지 않습니다."],
+
+["제12조 (면책)",
+"1. 서비스는 사장님과 손님 간 거래의 당사자가 아니므로, 상품의 품질·배송·환불 등 거래 자체에 관한 분쟁에 개입하지 않으며 책임을 지지 않습니다.\n2. 서비스는 이용자가 등록한 정보의 진실성·정확성을 보증하지 않습니다.\n3. 이용자의 기기에 저장된 데이터가 브라우저 설정 변경, 캐시 삭제 등으로 소실된 경우 서비스는 책임을 지지 않습니다."],
+
+["제13조 (분쟁의 해결)",
+"1. 서비스와 이용자 사이에 분쟁이 발생한 경우 상호 협의하여 해결하는 것을 원칙으로 합니다.\n2. 협의가 이루어지지 않을 경우 민사소송법에 따른 관할 법원에 소를 제기할 수 있으며, 준거법은 대한민국 법으로 합니다."],
+
+["부칙",
+"이 약관은 "+PD_TERMS_DATE+"부터 시행합니다."]
+  ]);
+}
+
+function renderPrivacy(){
+  legalPage("🔒 개인정보처리방침", [
+["1. 총칙",
+"포도다(이하 “서비스”)는 이용자의 개인정보를 중요하게 생각하며, 「개인정보 보호법」 등 관련 법령을 준수합니다.\n서비스는 필요한 최소한의 정보만 수집하며, 대부분의 데이터는 서버가 아닌 <b>이용자의 기기(브라우저 저장소)</b>에 보관됩니다."],
+
+["2. 수집하는 항목과 방법",
+"[사장님]\n· 가게 주소(slug), 가게 이름·소개·위치 등 직접 입력한 가게 정보\n· PIN의 암호화된 값(원문은 저장하지 않습니다)\n· 알림 수신을 위한 브라우저 푸시 구독 정보\n\n[손님]\n· 기기에서 자동 생성한 임의의 손님 식별자(예: g_ab12cd34)\n· 주문 내용(메뉴·수량·금액)과 문의 채팅에 직접 입력한 내용\n\n[공통]\n· 접속 시 자동 생성되는 IP 주소(남용 방지 목적, 1분 단위 카운터로만 사용)\n\n서비스는 이름·전화번호·주소·생년월일·계좌번호 등 <b>실명 식별 정보를 요구하지 않습니다.</b>"],
+
+["3. 이용 목적",
+"1. 가게 등록과 사장님 본인 확인(PIN 인증)\n2. 주문 접수·처리와 재고 관리\n3. 손님과 사장님 간 문의 응대\n4. 새 주문·문의 알림 발송\n5. 부정 이용·과다 요청 차단"],
+
+["4. 보유 및 파기",
+"· 가게 정보·주문·문의 기록: 사장님이 탈퇴할 때까지 보관하며, 탈퇴 즉시 서버에서 삭제됩니다.\n· 푸시 구독 정보: 알림을 끄거나 구독이 만료되면 삭제됩니다.\n· IP 기반 카운터: 1분 단위로 자동 소멸합니다.\n· 이용자 기기에 저장된 데이터: 브라우저 데이터 삭제 시 즉시 사라집니다."],
+
+["5. 제3자 제공",
+"서비스는 이용자의 개인정보를 제3자에게 제공하지 않습니다.\n다만 법령에 근거한 수사기관의 적법한 요청이 있는 경우에는 예외로 합니다."],
+
+["6. 처리 위탁",
+"서비스 운영을 위해 아래 업체의 인프라를 이용합니다.\n· Cloudflare, Inc. — 서버 운영·데이터 저장(전 세계 분산 인프라)\n· Google LLC, Apple Inc., Mozilla 등 — 웹푸시 알림 전달(각 브라우저 제조사의 푸시 서버)\n\n알림 본문은 <b>암호화되어 전달</b>되므로 푸시 서버는 내용을 읽을 수 없습니다."],
+
+["7. AI 기능과 데이터 처리",
+"이용자가 직접 API 키를 입력한 경우에 한해 AI 기능(자연어 주문 이해, 메뉴판 사진 인식 등)이 동작합니다.\n· API 키는 <b>이용자의 기기에만 저장</b>되며 서비스 서버로 전송되지 않습니다.\n· AI 기능 사용 시 입력한 내용은 해당 AI 제공사(Anthropic, Google 등)로 전송되며, 그 처리에는 각 사의 정책이 적용됩니다.\n· API 키를 입력하지 않아도 검색·등록·주문 등 기본 기능은 모두 사용할 수 있습니다."],
+
+["8. 이용자의 권리",
+"1. 이용자는 언제든지 자신이 등록한 정보를 조회·수정할 수 있습니다.\n2. 사장님은 설정 화면의 ‘가게 탈퇴하기’로 서버에 저장된 자신의 정보를 즉시 전부 삭제할 수 있습니다.\n3. 손님은 브라우저의 사이트 데이터를 삭제하여 기기에 저장된 정보를 지울 수 있습니다.\n4. 알림 수신은 브라우저 설정에서 언제든지 거부할 수 있습니다."],
+
+["9. 안전성 확보 조치",
+"· PIN은 원문을 저장하지 않고 솔트를 더해 10만 회 반복 해시(PBKDF2)한 값만 보관합니다.\n· 로그인 5회 실패 시 일정 시간 잠금 처리합니다.\n· 모든 통신은 HTTPS로 암호화됩니다.\n· 알림 본문은 RFC 8291 방식으로 종단 간 암호화하여 전송합니다.\n· 다른 가게의 주문·문의에는 접근할 수 없도록 서버에서 권한을 검사합니다."],
+
+["10. 아동의 개인정보",
+"서비스는 만 14세 미만 아동을 대상으로 하지 않으며, 아동의 개인정보를 의도적으로 수집하지 않습니다."],
+
+["11. 개인정보 보호책임자",
+"성명: 이병주\n연락처: hasin7jk@gmail.com\n\n개인정보와 관련한 문의·불만·피해구제는 위 연락처로 접수해 주시기 바랍니다."],
+
+["12. 고지의 의무",
+"이 방침의 내용이 추가·삭제·수정되는 경우 시행 7일 전부터 서비스 화면을 통해 공지합니다.\n\n[기타 상담 기관]\n· 개인정보침해신고센터 (privacy.kisa.or.kr / 국번없이 118)\n· 대검찰청 사이버수사과 (spo.go.kr / 1301)\n· 경찰청 사이버수사국 (ecrm.police.go.kr / 182)"]
+  ]);
+}
+
 function renderSettings(){
   var prov=getProvider();
   var key=getKey();
@@ -3592,7 +3782,8 @@ function renderSettings(){
         '</div>'+
         '<div id="fl-lang-status" data-no-i18n style="margin-top:12px;font-size:11.5px;color:var(--sub);line-height:1.6;font-weight:700">📍</div>'+
         '<div style="margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5">🌐 한국어 외 언어는 홈·포도톡·상점·등록·쇼핑·설정 전체 화면이 자동 번역돼요. <b>API 키 없이도</b> 무료 번역으로 동작합니다. 결과는 이 기기에 저장돼 다음부턴 즉시 표시됩니다.</div>'+
-      '</div></div>';
+      '</div></div>'+
+    legalBlock();
   setActiveTab("#/settings");
   try{ flLangStatus(); }catch(e){}
 }
@@ -4573,7 +4764,7 @@ function renderAdmin(){
     notiBanner(s)+
     pauseBar+
     adminStoreSwitcher(escapeHtml(s.slug))+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-11 v10 · 문의채팅</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:-4px 0 8px"><span style="font-size:10.5px;color:#b9b2c9">build 2026-08-12 v11 · 약관·탈퇴</span><button data-action="owner-logout" style="border:none;background:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔓 로그아웃</button></div>'+
     '<div class="tabseg"><button data-action="admin-tab" data-v="add" class="'+(view==="add"?"on":"")+'">메뉴 등록</button>'+
       '<button data-action="admin-tab" data-v="list" class="'+(view==="list"?"on":"")+'">내 메뉴 ('+s.menus.length+')</button>'+
       '<button data-action="admin-tab" data-v="reviews" class="'+(view==="reviews"?"on":"")+'">리뷰 ('+((s.reviews||[]).length)+')</button>'+
@@ -6362,6 +6553,7 @@ document.addEventListener("click", function(e){
     return; }
   if(a==="noti-ask"){ DB.set("fl_noti_ask",""); pdNotiAsk(function(){ renderAdmin(); }); return; }
   if(a==="noti-later"){ DB.set("fl_noti_ask","later"); toast("나중에 상단 띠에서 켜실 수 있어요"); renderAdmin(); return; }
+  if(a==="account-delete"){ accountDelete(el.getAttribute("data-slug")); return; }
   if(a==="ask-go"){ location.hash="#/ask/"+el.getAttribute("data-id"); return; }
   if(a==="ask-back"){ askStopPoll(); location.hash="#/ask"; return; }
   if(a==="ask-send"){ askSend(); return; }
