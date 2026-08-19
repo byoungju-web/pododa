@@ -3490,13 +3490,15 @@ function pdKeyLinkBanner(lockNote){
     '</div>';
   }
   var host=""; try{ host=new URL(PD_CFG.BRIDGE_ORIGIN).host; }catch(e){ host="podoya.ai.kr"; }
+  /* 포도다는 포도야와 별도로 운영한다. 키 가져오기 버튼은 포도야에
+     올려둔 pododa.html 을 팝업으로 열어 쓰던 것이라, 그 파일을 지우면
+     같이 죽는다. 그래서 버튼을 없애고 직접 입력으로 안내한다. */
   return '<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:14px;padding:12px 13px;margin-bottom:14px">'+
-    '<div style="font-size:12.5px;font-weight:800;color:#C2410C">🔑 Podoya 키는 자동 연동되지 않아요</div>'+
+    '<div style="font-size:12.5px;font-weight:800;color:#C2410C">🔑 키를 여기에 한 번 넣어주세요</div>'+
     '<div style="font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:4px">'+
-      '이 주소(<b>'+escapeHtml(location.host)+'</b>)는 Podoya(<b>'+escapeHtml(host)+'</b>)와 도메인이 달라서, 브라우저 정책상 저장된 키를 읽을 수 없습니다. '+
-      '아래에서 직접 입력하시거나, 버튼으로 한 번만 가져오세요.</div>'+
-    '<button data-action="key-bridge" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:11px;background:linear-gradient(135deg,#6D28D9,#4C1D95);color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">🔗 Podoya에서 키 가져오기</button>'+
-    '<div style="font-size:10.5px;color:var(--sub);margin-top:7px;line-height:1.5">Podoya가 열린 창이 잠깐 떴다가 닫힙니다. AI 키와 언어·국가 설정만 전달되고, Podoya 데이터는 변경되지 않습니다.</div>'+
+      '포도다(<b>'+escapeHtml(location.host)+'</b>)는 포도야(<b>'+escapeHtml(host)+'</b>)와 별도로 운영됩니다. '+
+      '브라우저 정책상 서로의 저장값을 읽을 수 없으니, 아래에서 직접 입력해 주세요. '+
+      '한 번 넣으면 이 기기에 저장되어 다시 넣지 않아도 됩니다.</div>'+
   '</div>';
 }
 /* ══════════════════════════════════════════════════════════════
@@ -5343,7 +5345,21 @@ var TK_CONTACTS=[
    방·메시지·UI는 그대로다.
    ══════════════════════════════════════════════════════════════ */
 var BOT_ROOM_ID="podo_bot", BOT_INBOX="podoai_bot_inbox", BOT_OUTBOX="podoai_bot_outbox";
+/* 🍇 포도야 비서 방은 포도톡(podotalk.kr)으로 옮겨갔다.
+   포도다는 상거래만 맡는다. 그래서 여기서는 방을 만들지 않고,
+   예전에 만들어진 방이 남아 있으면 조용히 치운다.
+   아래 botEnqueue·botDrainOutbox 와 곳곳의 안전장치는 그대로 둔다.
+   지우면 채팅 쪽을 여러 군데 건드려야 해서 위험하고, 남겨도 방이
+   없으니 실행될 일이 없다. */
 function botEnsureRoom(){
+  var rs=talkRooms(), i, changed=false;
+  for(i=rs.length-1;i>=0;i--){
+    if(rs[i] && (rs[i].id===BOT_ROOM_ID || rs[i].type==="bot")){ rs.splice(i,1); changed=true; }
+  }
+  if(changed){ saveTalkRooms(rs); }
+  return null;
+}
+function botEnsureRoom_OFF(){
   var rs=talkRooms(), i;
   for(i=0;i<rs.length;i++){ if(rs[i].id===BOT_ROOM_ID) return rs[i]; }
   var r={ id:BOT_ROOM_ID, type:"bot", name:"포도야 비서", emoji:"🍇", sub:"말만 하면 여러 앱을 순서대로", noti:true, pinned:true, ts:Date.now()+1 };
@@ -5368,7 +5384,7 @@ function botEnqueue(roomId, text){
   try{ renderTalkRoom(roomId); }catch(e){}
   setTimeout(function(){
     try{ sessionStorage.removeItem("from_podoai"); }catch(e){}
-    try{ location.assign("index.html?bot=1"); }catch(e){ location.href="index.html?bot=1"; }
+    var _u="https://podoya.ai.kr/?bot=1"; try{ location.assign(_u); }catch(e){ location.href=_u; }
   }, 700);
 }
 /* 실행기가 보낸 결과를 방에 붙임 */
@@ -6614,7 +6630,7 @@ document.addEventListener("click", function(e){
       });
     });
     return; }
-  if(a==="key-bridge"){ pdBridgeRequest(); return; }
+  if(a==="key-bridge"){ toast("키는 설정에서 직접 넣어주세요"); return; }   /* 브리지 폐지 */
   if(a==="new-store"){ renderNewStore(); return; }
   if(a==="go-admin"){ DB.set("fl_admin_tab","add"); if(location.hash!=="#/admin"){ location.hash="#/admin"; } else { renderAdmin(); } return; }
   if(a==="del-store"){
@@ -6892,7 +6908,9 @@ var CAME_FROM_PODOYA = (function(){
   }catch(e){}
   return false;
 })();
-function podoaiHome(){ try{ sessionStorage.removeItem('from_podoai'); }catch(e){} try{ location.assign('index.html'); }catch(e){ location.href='index.html'; } }
+/* 포도야와 도메인이 갈렸다. 'index.html' 은 이제 pododa 자기 자신이라
+   상대경로로 두면 제자리를 맴돈다. 절대주소로 보낸다. */
+function podoaiHome(){ try{ sessionStorage.removeItem('from_podoai'); }catch(e){} var u='https://podoya.ai.kr/'; try{ location.assign(u); }catch(e){ location.href=u; } }
 
 try{ sanMigrate(); }catch(e){}
 try{ pdStartPolling(); }catch(e){}
