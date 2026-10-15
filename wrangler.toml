@@ -1,0 +1,20 @@
+name = "pododa-api"
+main = "pododa-api-worker.js"
+compatibility_date = "2024-01-01"
+
+# D1 바인딩
+[[d1_databases]]
+binding = "DB"
+database_name = "pododa-db"
+database_id = "" # ← Cloudflare 대시보드에서 D1 ID 복사해서 넣기
+
+# R2 바인딩
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "pododa-media"
+
+# 환경 변수 (Workers 대시보드 → Settings → Variables 에서도 설정 가능)
+[vars]
+JWT_SECRET = "pododa-secret-change-this-to-random-string"
+SUPABASE_URL = "" # ← coverfo Supabase URL
+SUPABASE_ANON = "" # ← coverfo Supabase anon key
