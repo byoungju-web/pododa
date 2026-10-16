@@ -821,9 +821,12 @@ async function submitPost() {
       document.getElementById('regPrice').value = '';
       loadPosts();
     } else {
-      alert('등록 실패');
+      // 실패 이유를 그대로 보여줌 (원인 확인용)
+      let reason = '';
+      try { const d = await res.json(); reason = (d.error || '') + (d.message ? ' / ' + d.message : ''); } catch (_) {}
+      alert('등록 실패 (' + res.status + ')\n' + reason);
     }
-  } catch(e) { alert('오류가 발생했습니다'); }
+  } catch(e) { alert('오류가 발생했습니다\n' + e.message); }
 }
 
 // ===== 채팅 =====

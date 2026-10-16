@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pododa-v11';
+const CACHE_NAME = 'pododa-v12';
 const URLS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
