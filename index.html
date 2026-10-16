@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#7C3AED">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="/manifest.json">
 <title>pododa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
@@ -58,7 +58,7 @@ a{text-decoration:none;color:inherit}
 .nav-item .nav-icon{font-size:22px}
 
 /* 글쓰기 FAB */
-.fab{position:fixed;bottom:70px;right:calc(50% - 220px);width:52px;height:52px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:99;display:flex;align-items:center;justify-content:center}
+.fab{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:52px;height:52px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:99;display:flex;align-items:center;justify-content:center}
 
 /* 화면(페이지) */
 .page{display:none;min-height:100vh}
@@ -197,11 +197,8 @@ a{text-decoration:none;color:inherit}
 
 <!-- ===== 상단바 ===== -->
 <div class="topbar">
-  <button class="nation-btn" onclick="showNationModal()">🇰🇷 KR</button>
   <div class="logo">pododa</div>
   <button class="icon-btn" onclick="openSearch()">🔍</button>
-  <button class="icon-btn" onclick="openChatList()">💬<span class="badge hide" id="chatBadge">0</span></button>
-  <button class="icon-btn" onclick="showPage('my')">👤</button>
 </div>
 
 <!-- ===== 탭 ===== -->
@@ -249,6 +246,7 @@ a{text-decoration:none;color:inherit}
       <p style="font-size:16px;font-weight:600;color:#333">로그인이 필요합니다</p>
       <p style="font-size:13px;color:#999;text-align:center">coverfo 계정으로 로그인하면<br>글쓰기, 채팅, 찜 등을 이용할 수 있어요</p>
       <button onclick="document.getElementById('loginPage').classList.add('show')" style="width:100%;max-width:280px;padding:14px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer">로그인 / 회원가입</button>
+      <button onclick="showNationModal()" style="width:100%;max-width:280px;padding:12px;background:#fff;color:#333;border:1px solid var(--lgray);border-radius:10px;font-size:14px;cursor:pointer">🌍 국가 설정 <span class="nation-label" style="color:var(--pri);font-weight:600"></span></button>
       <div style="display:flex;gap:16px;margin-top:8px;font-size:13px">
         <span onclick="openLbsTerms()" style="color:var(--pri);cursor:pointer">📜 위치기반서비스 이용약관</span>
         <span onclick="clearMyLocation()" style="color:var(--gray);cursor:pointer">📍 위치 정보 삭제</span>
@@ -270,7 +268,7 @@ a{text-decoration:none;color:inherit}
         <div class="menu-item" onclick="showMyPosts()"><span class="mi-icon">📝</span>내 게시글</div>
         <div class="menu-item" onclick="showMyLikes()"><span class="mi-icon">❤️</span>찜 목록</div>
         <div class="menu-item" onclick="openChatList()"><span class="mi-icon">💬</span>채팅</div>
-        <div class="menu-item" onclick="showNationModal()"><span class="mi-icon">🌍</span>국가 설정</div>
+        <div class="menu-item" onclick="showNationModal()"><span class="mi-icon">🌍</span>국가 설정 <span class="nation-label" style="margin-left:auto;color:var(--pri);font-weight:600"></span></div>
         <div class="menu-item" onclick="showLangModal()"><span class="mi-icon">🌐</span>언어 설정</div>
         <div class="menu-item" onclick="clearMyLocation()"><span class="mi-icon">📍</span>위치 정보 삭제 (동의 철회)</div>
         <div class="menu-item" onclick="openLbsTerms()"><span class="mi-icon">📜</span>위치기반서비스 이용약관</div>
@@ -980,7 +978,8 @@ function selectNation(code, flag) {
 
 function updateNationUI() {
   const n = nations.find(n => n.code === currentNation);
-  document.querySelector('.nation-btn').textContent = n ? `${n.flag} ${n.code}` : currentNation;
+  const label = n ? `${n.flag} ${n.code}` : currentNation;
+  document.querySelectorAll('.nation-label').forEach(el => { el.textContent = label; });
 }
 
 // ===== 페이지 전환 =====
@@ -1191,6 +1190,50 @@ async function clearMyLocation() {
 }
 function openLbsTerms() { const el = document.getElementById('lbsTermsPage'); el.classList.add('show'); el.scrollTop = 0; }
 function closeLbsTerms() { document.getElementById('lbsTermsPage').classList.remove('show'); }
+
+// ===== 휴대폰 뒤로가기 =====
+// 위에 떠 있는 화면부터 하나씩 닫음 (위에 있는 것이 먼저)
+const PD_BACK_LAYERS = [
+  ['lbsTermsPage', () => closeLbsTerms()],
+  ['nationModal', () => closeNationModal()],
+  ['loginPage', () => document.getElementById('loginPage').classList.remove('show')],
+  ['chatRoomPage', () => closeChatRoom()],
+  ['chatListPage', () => closeChatList()],
+  ['regPage', () => closeRegister()],
+  ['detailPage', () => closeDetail()],
+  ['searchPage', () => closeSearch()]
+];
+let pdExitArmed = false;
+function pdArmBack() { history.pushState({ pd: 1 }, ''); }
+function pdToast(msg) {
+  let t = document.getElementById('pdToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'pdToast';
+    t.style.cssText = 'position:fixed;bottom:130px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;z-index:999;display:none;white-space:nowrap';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => { t.style.display = 'none'; }, 2000);
+}
+window.addEventListener('popstate', () => {
+  for (const [id, close] of PD_BACK_LAYERS) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('show')) { close(); pdExitArmed = false; pdArmBack(); return; }
+  }
+  if (!document.getElementById('pageFeed').classList.contains('active')) {
+    showPage('feed'); pdExitArmed = false; pdArmBack(); return;
+  }
+  if (!pdExitArmed) {
+    // 홈 화면: 한 번 더 누르면 종료
+    pdExitArmed = true; pdArmBack();
+    pdToast('뒤로 버튼을 한 번 더 누르면 종료돼요');
+    setTimeout(() => { pdExitArmed = false; }, 2000);
+    return;
+  }
+  history.back();
+});
+window.addEventListener('load', () => { pdArmBack(); });
 // 주소로도 열림: pododa.kr/#lbs
 if (location.hash === '#lbs') setTimeout(openLbsTerms, 300);
 
