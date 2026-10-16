@@ -916,7 +916,7 @@ async function doLogin() {
   try {
     const { error } = await supaClient.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: location.origin + '/' }
+      options: { emailRedirectTo: 'https://pododa.kr' }
     });
     btn.textContent = '매직 링크 보내기';
     btn.disabled = false;
@@ -931,12 +931,19 @@ async function doLogin() {
 }
 
 // Supabase 매직링크 콜백 처리 (URL 해시에 토큰 포함)
+let pdLoginBusy = false;
 async function handleAuthCallback() {
-  const hash = window.location.hash;
-  if (!hash || !hash.includes('access_token')) return;
+  if (currentUser || pdLoginBusy) return;
   const { data, error } = await supaClient.auth.getSession();
   if (error || !data.session) return;
-  const session = data.session;
+  await pdRegisterSession(data.session);
+}
+supaClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session && !currentUser) pdRegisterSession(session);
+});
+async function pdRegisterSession(session) {
+  if (pdLoginBusy) return;
+  pdLoginBusy = true;
   const sbUser = session.user;
   // Worker에 사용자 등록/조회
   try {
@@ -959,15 +966,19 @@ async function handleAuthCallback() {
       localStorage.setItem('pd_user', JSON.stringify(result.user));
       currentUser = result.user;
       updateProfile();
+    } else {
+      alert('pododa 로그인 실패: ' + (result.message || result.error || res.status));
     }
-  } catch (e) { console.error('auth callback error', e); }
+  } catch (e) { alert('pododa 로그인 오류: ' + e.message); }
+  pdLoginBusy = false;
   // URL 해시 제거
-  history.replaceState(null, '', location.pathname);
+  if (location.hash) history.replaceState(null, '', location.pathname);
 }
 
 function doLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
     currentUser = null;
+    try { supaClient.auth.signOut(); } catch (e) {}
     localStorage.removeItem('pd_user');
     localStorage.removeItem('pd_token');
     updateProfile();
