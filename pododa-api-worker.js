@@ -32,7 +32,7 @@ export default {
       // ===== 게시글 =====
       // GET /api/posts — 목록
       if (path === '/api/posts' && method === 'GET') {
-        return cors(await getPosts(url, env));
+        return cors(await getPosts(url, env, userId, request));
       }
       // POST /api/posts — 등록
       if (path === '/api/posts' && method === 'POST') {
@@ -135,7 +135,7 @@ export default {
 // 게시글 (Posts)
 // ========================================
 
-async function getPosts(url, env) {
+async function getPosts(url, env, userId, request) {
   const cat = url.searchParams.get('cat') || '0';
   const nation = url.searchParams.get('nation') || '';
   const sub = url.searchParams.get('sub');
@@ -144,24 +144,44 @@ async function getPosts(url, env) {
   const limit = 20;
   const offset = (page - 1) * limit;
 
-  let where = 'is_deleted = 0 AND category = ?';
+  let where = 'p.is_deleted = 0 AND p.category = ?';
   let params = [parseInt(cat)];
 
   // 자연(4)이 아니면 국가 필터
   if (parseInt(cat) !== 4 && nation) {
-    where += ' AND nation_code = ?';
+    where += ' AND p.nation_code = ?';
     params.push(nation);
   }
   // 서브 카테고리
   if (sub !== null && sub !== undefined && sub !== '' && sub !== '-1') {
-    where += ' AND sub_cate = ?';
+    where += ' AND p.sub_cate = ?';
     params.push(parseInt(sub));
   }
 
-  let orderBy = 'created_at DESC';
-  if (sort === 'popular') orderBy = 'like_count DESC, created_at DESC';
-  else if (sort === 'price_low') orderBy = "CAST(price AS REAL) ASC";
-  else if (sort === 'price_high') orderBy = "CAST(price AS REAL) DESC";
+  // ── 내주변(3) 거리 검색: 이용자 위치는 이 요청 처리에만 쓰고 저장하지 않는다 (이용 기록만 남김) ──
+  const near = nearbyParams(url, cat);
+  if (near) {
+    const dLat = near.r / 111;
+    const dLng = near.r / (111 * Math.max(0.1, Math.cos(near.lat * Math.PI / 180)));
+    const nsql = `SELECT p.*, u.nickname, u.profile_img, u.trust_score
+      FROM pd_posts p LEFT JOIN pd_users u ON p.user_id = u.id
+      WHERE ${where} AND p.lat BETWEEN ? AND ? AND p.lng BETWEEN ? AND ? AND NOT (p.lat = 0 AND p.lng = 0)
+      ORDER BY p.created_at DESC LIMIT 500`;
+    const nparams = params.concat([near.lat - dLat, near.lat + dLat, near.lng - dLng, near.lng + dLng]);
+    const { results } = await env.DB.prepare(nsql).bind(...nparams).all();
+    const within = (results || [])
+      .map(p => ({ p, d: distKm(near.lat, near.lng, p.lat, p.lng) }))
+      .filter(x => x.d <= near.r)
+      .sort((a, b) => a.d - b.d);
+    await logLocationUse(env, userId || (near.dev ? 'dev:' + near.dev : 'anon'), request, 'pododa-nearby', '');
+    const pageRows = within.slice(offset, offset + limit).map(x => ({ ...publicPost(x.p), dist: Math.round(x.d * 10) / 10 }));
+    return json({ posts: pageRows, page, hasMore: within.length > offset + limit, nearby: true });
+  }
+
+  let orderBy = 'p.created_at DESC';
+  if (sort === 'popular') orderBy = 'p.like_count DESC, p.created_at DESC';
+  else if (sort === 'price_low') orderBy = "CAST(p.price AS REAL) ASC";
+  else if (sort === 'price_high') orderBy = "CAST(p.price AS REAL) DESC";
 
   const sql = `SELECT p.*, u.nickname, u.profile_img, u.trust_score
     FROM pd_posts p LEFT JOIN pd_users u ON p.user_id = u.id
@@ -169,7 +189,7 @@ async function getPosts(url, env) {
   params.push(limit, offset);
 
   const { results } = await env.DB.prepare(sql).bind(...params).all();
-  return json({ posts: results || [], page, hasMore: (results || []).length === limit });
+  return json({ posts: (results || []).map(publicPost), page, hasMore: (results || []).length === limit });
 }
 
 
@@ -200,6 +220,10 @@ async function createPost(request, userId, env) {
 
   const searchText = `${data.title || ''} ${data.body || ''} ${data.address || ''}`.toLowerCase();
 
+  // 글 위치: 소수 둘째 자리(약 1km)로 줄여 저장. 다른 이용자에게는 좌표를 내보내지 않고 거리만 보여 준다
+  const pLat = roundLoc(data.lat, 90), pLng = roundLoc(data.lng, 180);
+  const hasLoc = !(pLat === 0 && pLng === 0);
+
   const sql = `INSERT INTO pd_posts
     (user_id, category, sub_cate, nation_code, lang_code, title, body, price, currency,
      images, lat, lng, address, phone, opening_hours, moq, company_info,
@@ -217,8 +241,8 @@ async function createPost(request, userId, env) {
     data.price || '',
     data.currency || 'KRW',
     JSON.stringify(imageUrls),
-    parseFloat(data.lat || 0),
-    parseFloat(data.lng || 0),
+    hasLoc ? pLat : 0,
+    hasLoc ? pLng : 0,
     data.address || '',
     data.phone || '',
     data.opening_hours || '',
@@ -228,6 +252,7 @@ async function createPost(request, userId, env) {
     searchText
   ).run();
 
+  if (hasLoc) await logLocationUse(env, userId, request, 'pododa-post-location', '');
   return json({ ok: true, id: result.meta?.last_row_id });
 }
 
@@ -238,7 +263,7 @@ async function getPostDetail(postId, env) {
     WHERE p.id = ? AND p.is_deleted = 0`;
   const row = await env.DB.prepare(sql).bind(postId).first();
   if (!row) return json({ error: 'not_found' }, 404);
-  return json(row);
+  return json(publicPost(row));
 }
 
 
@@ -432,20 +457,20 @@ async function searchPosts(url, env) {
   const nation = url.searchParams.get('nation') || '';
   if (!q) return json({ posts: [] });
 
-  let where = "is_deleted = 0 AND search_text LIKE ?";
+  let where = "p.is_deleted = 0 AND p.search_text LIKE ?";
   let params = [`%${q}%`];
 
   if (nation) {
-    where += ' AND nation_code = ?';
+    where += ' AND p.nation_code = ?';
     params.push(nation);
   }
 
   const sql = `SELECT p.*, u.nickname, u.profile_img, u.trust_score
     FROM pd_posts p LEFT JOIN pd_users u ON p.user_id = u.id
-    WHERE ${where} ORDER BY created_at DESC LIMIT 30`;
+    WHERE ${where} ORDER BY p.created_at DESC LIMIT 30`;
 
   const { results } = await env.DB.prepare(sql).bind(...params).all();
-  return json({ posts: results || [] });
+  return json({ posts: (results || []).map(publicPost) });
 }
 
 
@@ -479,9 +504,7 @@ async function updateProfile(userId, request, env) {
   if (data.profile_img !== undefined) { fields.push('profile_img = ?'); params.push(data.profile_img); }
   if (data.nation_code !== undefined) { fields.push('nation_code = ?'); params.push(data.nation_code); }
   if (data.lang_code !== undefined) { fields.push('lang_code = ?'); params.push(data.lang_code); }
-  if (data.lat !== undefined) { fields.push('lat = ?'); params.push(data.lat); }
-  if (data.lng !== undefined) { fields.push('lng = ?'); params.push(data.lng); }
-  if (data.radius !== undefined) { fields.push('radius = ?'); params.push(data.radius); }
+  // lat·lng·radius 는 받지 않는다 — 이용자 위치는 서버에 저장하지 않음 (위치기반서비스 신고 내용)
 
   if (fields.length === 0) return json({ error: 'no fields' }, 400);
 
@@ -628,6 +651,65 @@ async function verifyToken(token, env) {
   } catch {
     return null;
   }
+}
+
+
+// ========================================
+// 위치정보 (내주변 거리 검색 · 이용사실 기록)
+// ========================================
+
+// 내주변(3) + 위도·경도 + 반경(0 초과)이 모두 있을 때만 거리 검색
+function nearbyParams(url, cat) {
+  if (parseInt(cat) !== 3) return null;
+  const lat = parseFloat(url.searchParams.get('lat'));
+  const lng = parseFloat(url.searchParams.get('lng'));
+  const r = parseFloat(url.searchParams.get('r') || '0');
+  if (!isFinite(lat) || !isFinite(lng) || !isFinite(r) || r <= 0) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) return null;
+  const dev = url.searchParams.get('dev') || '';
+  return { lat, lng, r: Math.min(r, 50), dev: /^[A-Za-z0-9-]{8,64}$/.test(dev) ? dev : '' };
+}
+
+function distKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function roundLoc(v, max) {
+  const n = parseFloat(v);
+  if (!isFinite(n) || Math.abs(n) > max) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+// 글 정보에서 좌표(lat·lng)를 빼고 내보낸다
+function publicPost(p) {
+  if (!p) return p;
+  const { lat, lng, ...rest } = p;
+  return rest;
+}
+
+// 위치정보 이용·제공사실 확인자료 (위치정보법 취급대장) — 6개월 이상 보관
+let locLogReady = false;
+async function logLocationUse(env, who, request, service, providedTo) {
+  try {
+    if (!locLogReady) {
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS pd_location_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        service TEXT NOT NULL,
+        provided_to TEXT DEFAULT '',
+        used_at TEXT NOT NULL)`).run();
+      locLogReady = true;
+    }
+    const ua = (request && request.headers.get('User-Agent')) || '';
+    const os = /iPhone|iPad|iPod|Macintosh/i.test(ua) ? 'apple' : /Android/i.test(ua) ? 'android' : 'other';
+    await env.DB.prepare(
+      `INSERT INTO pd_location_log (user_id, source, service, provided_to, used_at) VALUES (?,?,?,?,datetime('now'))`
+    ).bind(String(who || 'anon'), 'browser_geolocation_' + os, service, providedTo || '').run();
+  } catch (e) { /* 기록 실패가 화면을 막지 않게 */ }
 }
 
 

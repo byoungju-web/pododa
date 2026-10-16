@@ -255,6 +255,7 @@ a{text-decoration:none;color:inherit}
         <div class="menu-item" onclick="openChatList()"><span class="mi-icon">💬</span>채팅</div>
         <div class="menu-item" onclick="showNationModal()"><span class="mi-icon">🌍</span>국가 설정</div>
         <div class="menu-item" onclick="showLangModal()"><span class="mi-icon">🌐</span>언어 설정</div>
+        <div class="menu-item" onclick="clearMyLocation()"><span class="mi-icon">📍</span>위치 정보 삭제 (동의 철회)</div>
         <div class="menu-item" onclick="editProfile()"><span class="mi-icon">⚙️</span>프로필 수정</div>
         <div class="menu-item" onclick="doLogout()" style="color:var(--red)"><span class="mi-icon">🚪</span>로그아웃</div>
       </div>
@@ -352,6 +353,7 @@ a{text-decoration:none;color:inherit}
       <label>위치 / 주소</label>
       <input type="text" id="regAddress" placeholder="주소 입력">
       <button onclick="getMyLocation()" style="margin-top:6px;padding:6px 12px;border:1px solid var(--lgray);border-radius:6px;font-size:12px;cursor:pointer;background:var(--white)">📍 현재 위치</button>
+      <p id="regLocNote" style="font-size:11.5px;color:var(--gray);margin-top:6px;line-height:1.5">'📍 현재 위치'를 누른 경우에만 글 위치가 약 1km 범위로 저장되고, 다른 사람에게는 좌표가 아닌 거리(km)만 보여요.</p>
     </div>
     <div class="form-group hide" id="regPhoneGroup">
       <label>전화번호</label>
@@ -447,8 +449,13 @@ let currentLang = localStorage.getItem('pd_lang') || navigator.language.slice(0,
 let currentUser = JSON.parse(localStorage.getItem('pd_user') || 'null');
 let currentSort = 'recent';
 let currentRadius = 10;
-let myLat = parseFloat(localStorage.getItem('pd_lat')) || 0;
-let myLng = parseFloat(localStorage.getItem('pd_lng')) || 0;
+let locOk = localStorage.getItem('pd_loc_ok') === '1';   // 내주변 위치 사용 동의
+if (!locOk) { localStorage.removeItem('pd_lat'); localStorage.removeItem('pd_lng'); }   // 동의 전에 저장된 위치는 지운다
+let myLat = locOk ? (parseFloat(localStorage.getItem('pd_lat')) || 0) : 0;
+let myLng = locOk ? (parseFloat(localStorage.getItem('pd_lng')) || 0) : 0;
+let regLat = 0, regLng = 0;   // 글 위치: '📍 현재 위치'를 눌렀을 때만
+let pdDev = localStorage.getItem('pd_dev') || '';   // 위치 이용 기록용 기기 무작위 ID (개인정보 아님)
+if (!pdDev) { pdDev = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + Math.random().toString(36).slice(2)); localStorage.setItem('pd_dev', pdDev); }
 let regSaleStatus = 0;
 let regImageFiles = [];
 let viewingPost = null;
@@ -486,15 +493,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateProfile();
   updateNationUI();
   renderSubCats();
+  document.getElementById('radiusSelect').style.display = currentTab === 3 ? '' : 'none';
   loadPosts();
-  if (navigator.geolocation && !myLat) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      myLat = pos.coords.latitude;
-      myLng = pos.coords.longitude;
-      localStorage.setItem('pd_lat', myLat);
-      localStorage.setItem('pd_lng', myLng);
-    }, () => {});
-  }
+  // 앱을 열 때 위치를 받지 않는다. 위치는 '내주변' 탭에서 동의한 뒤에만 쓴다.
 });
 
 // ===== 탭 전환 =====
@@ -504,9 +505,10 @@ function switchTab(idx) {
   page = 1;
   document.querySelectorAll('.tab-item').forEach((t,i) => t.classList.toggle('active', i === idx));
   renderSubCats();
+  // 반경 선택은 '내주변'에서만 (거리 검색은 내주변만 함)
+  document.getElementById('radiusSelect').style.display = idx === 3 ? '' : 'none';
+  if (idx === 3 && locOk) { refreshLoc(loadPosts); return; }
   loadPosts();
-  // 자연 탭이면 반경 선택 숨기기
-  document.getElementById('radiusSelect').style.display = idx === 4 ? 'none' : '';
 }
 
 // ===== 서브 카테고리 렌더링 =====
@@ -534,13 +536,18 @@ async function loadPosts() {
   const sort = document.getElementById('sortSelect').value;
   const radius = document.getElementById('radiusSelect').value;
 
-  let url = `${API}/posts?cat=${currentTab}&page=${page}&sort=${sort}&r=${radius}`;
+  const nearby = currentTab === 3 && radius !== '0';
+  if (nearby && !locOk) { empty.classList.add('hide'); list.innerHTML = locConsentHtml(); return; }
+  if (nearby && !myLat) { empty.classList.add('hide'); list.innerHTML = '<div class="loading">📍 현재 위치 확인 중…</div>'; refreshLoc(loadPosts); return; }
+
+  let url = `${API}/posts?cat=${currentTab}&page=${page}&sort=${sort}`;
   if (currentTab !== 4) url += `&nation=${currentNation}`;
   if (currentSubCat >= 0) url += `&sub=${currentSubCat}`;
-  if (myLat) url += `&lat=${myLat}&lng=${myLng}`;
+  // 위치는 '내주변' 거리 검색에만 보낸다 (서버는 저장하지 않고 이용 기록만 남김)
+  if (nearby) url += `&r=${radius}&lat=${myLat}&lng=${myLng}&dev=${encodeURIComponent(pdDev)}`;
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, nearby ? { headers: authHeaders() } : undefined);
     if (!res.ok) throw new Error();
     const data = await res.json();
     if (!data.posts || data.posts.length === 0) {
@@ -549,7 +556,7 @@ async function loadPosts() {
       return;
     }
     empty.classList.add('hide');
-    list.innerHTML = data.posts.map(p => renderPostCard(p)).join('');
+    list.innerHTML = (nearby ? locBarHtml() : '') + data.posts.map(p => renderPostCard(p)).join('');
   } catch (e) {
     // API 아직 없으면 샘플 표시
     empty.classList.remove('hide');
@@ -571,6 +578,7 @@ function renderPostCard(p) {
         <span>❤️ ${p.like_count||0}</span>
         <span>💬 ${p.chat_count||0}</span>
         <span>👁 ${p.view_count||0}</span>
+        ${p.dist != null ? `<span>📍 ${p.dist < 1 ? '1km 이내' : '약 ' + p.dist + 'km'}</span>` : ''}
       </div>
     </div>
   </div>`;
@@ -652,6 +660,7 @@ function makeOffer() {
 function openRegister() {
   if (!checkLogin()) return;
   document.getElementById('regCat').value = currentTab;
+  regLat = 0; regLng = 0;
   onRegCatChange();
   document.getElementById('regPage').classList.add('show');
 }
@@ -719,8 +728,7 @@ async function submitPost() {
   formData.append('moq', document.getElementById('regMoq').value);
   formData.append('company_info', document.getElementById('regCompany').value);
   formData.append('sale_status', regSaleStatus);
-  formData.append('lat', myLat);
-  formData.append('lng', myLng);
+  if (regLat || regLng) { formData.append('lat', regLat); formData.append('lng', regLng); }
   regImageFiles.forEach(f => formData.append('images', f));
 
   try {
@@ -731,6 +739,7 @@ async function submitPost() {
     });
     if (res.ok) {
       alert('등록되었습니다!');
+      regLat = 0; regLng = 0;
       closeRegister();
       regImageFiles = [];
       renderRegImages();
@@ -1020,16 +1029,66 @@ function showMyPosts() { alert('내 게시글 - 준비 중'); }
 function showMyLikes() { alert('찜 목록 - 준비 중'); }
 function showLangModal() { alert('언어 설정 - 준비 중'); }
 function reportPost() { if(confirm('이 게시글을 신고하시겠습니까?')) alert('신고가 접수되었습니다'); }
+// 글 등록의 '📍 현재 위치' — 이 글의 위치로만 쓴다 (내주변 검색 위치와 별개)
 function getMyLocation() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(pos => {
-      myLat = pos.coords.latitude;
-      myLng = pos.coords.longitude;
-      localStorage.setItem('pd_lat', myLat);
-      localStorage.setItem('pd_lng', myLng);
-      alert('현재 위치를 가져왔습니다');
+      regLat = pos.coords.latitude;
+      regLng = pos.coords.longitude;
+      alert('글 위치를 넣었습니다 (약 1km 범위로만 저장돼요)');
     }, () => alert('위치를 가져올 수 없습니다'));
   }
+}
+
+// ===== 내주변 위치 (동의 → 위치 → 거리 검색) =====
+function locConsentHtml() {
+  return `<div style="background:var(--white);margin:12px;border-radius:var(--radius);padding:18px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08);font-size:13.5px;line-height:1.65;color:#444">
+    <div style="font-size:16px;font-weight:700;color:var(--dgray);margin-bottom:8px">📍 내주변 위치 사용 안내</div>
+    <p>pododa는 '내주변' 글을 가까운 순서로 보여 주려고 이 기기의 현재 위치(위도·경도)를 사용합니다.</p>
+    <p style="margin-top:6px">· 위치는 주변 글을 찾는 데만 쓰고 서버에 저장하지 않습니다.<br>· 위치정보법에 따라 위치를 사용한 사실(언제·어떤 서비스)만 기록해 6개월 이상 보관합니다.<br>· 내 위치를 다른 사람에게 보여 주지 않습니다.<br>· 언제든 '위치 끄기' 또는 MY → 위치 정보 삭제로 동의를 철회할 수 있습니다.</p>
+    <button onclick="agreeLoc()" style="width:100%;margin-top:14px;padding:12px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer">동의하고 내 위치 사용</button>
+    <button onclick="nearbyAll()" style="width:100%;margin-top:8px;padding:11px;background:var(--white);color:var(--dgray);border:1px solid var(--lgray);border-radius:8px;font-size:14px;cursor:pointer">동의 안 함 · 거리 없이 전체 보기</button>
+  </div>`;
+}
+function locBarHtml() {
+  return `<div style="margin:8px 12px 0;font-size:12px;color:var(--gray);display:flex;justify-content:space-between;align-items:center">
+    <span>📍 내 위치 기준 · ${esc(document.getElementById('radiusSelect').value)}km 이내 · 가까운 순</span>
+    <span onclick="clearMyLocation()" style="color:var(--pri);cursor:pointer">위치 끄기</span></div>`;
+}
+function agreeLoc() {
+  locOk = true;
+  localStorage.setItem('pd_loc_ok', '1');
+  document.getElementById('postList').innerHTML = '<div class="loading">📍 현재 위치 확인 중…</div>';
+  refreshLoc(loadPosts);
+}
+function nearbyAll() {
+  document.getElementById('radiusSelect').value = '0';
+  page = 1;
+  loadPosts();
+}
+function refreshLoc(cb) {
+  if (!navigator.geolocation) { locFail('이 브라우저는 위치 기능을 지원하지 않아요.'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    myLat = pos.coords.latitude;
+    myLng = pos.coords.longitude;
+    localStorage.setItem('pd_lat', myLat);   // 이 기기에만 저장 (서버 저장 안 함)
+    localStorage.setItem('pd_lng', myLng);
+    if (cb) cb();
+  }, () => locFail('위치를 가져올 수 없어요. 폰 설정에서 이 사이트의 위치 권한을 허용해 주세요.'),
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+}
+function locFail(msg) {
+  if (currentTab !== 3) return;
+  document.getElementById('emptyGuide').classList.add('hide');
+  document.getElementById('postList').innerHTML = `<div class="empty"><div class="empty-icon">📍</div><p>${esc(msg)}</p>
+    <button onclick="nearbyAll()" style="margin-top:14px;padding:10px 16px;border:1px solid var(--lgray);border-radius:8px;background:var(--white);font-size:14px;cursor:pointer">거리 없이 전체 보기</button></div>`;
+}
+// 위치 정보 삭제 (동의 철회): 이 기기에 저장된 위치·동의를 지운다. 서버에는 위치가 저장되지 않는다.
+function clearMyLocation() {
+  locOk = false; myLat = 0; myLng = 0;
+  localStorage.removeItem('pd_lat'); localStorage.removeItem('pd_lng'); localStorage.removeItem('pd_loc_ok');
+  alert('이 기기에 저장된 위치와 위치 사용 동의를 지웠어요.');
+  if (currentTab === 3) { page = 1; loadPosts(); }
 }
 
 // ===== 유틸 =====
