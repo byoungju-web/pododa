@@ -820,6 +820,20 @@ async function submitPost() {
       document.getElementById('regBody').value = '';
       document.getElementById('regPrice').value = '';
       loadPosts();
+    } else if (res.status === 401) {
+      // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우:
+      // coverfo 로그인이 살아 있으면 메일 없이 pododa 토큰을 새로 받음
+      localStorage.removeItem('pd_token');
+      localStorage.removeItem('pd_user');
+      currentUser = null;
+      await handleAuthCallback();
+      if (currentUser) {
+        alert('로그인을 새로 확인했어요.\n등록 버튼을 한 번 더 눌러 주세요.');
+      } else {
+        updateProfile();
+        alert('로그인이 만료되었어요. 다시 로그인해 주세요.');
+        document.getElementById('loginPage').classList.add('show');
+      }
     } else {
       // 실패 이유를 그대로 보여줌 (원인 확인용)
       let reason = '';
