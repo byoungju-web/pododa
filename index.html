@@ -932,9 +932,14 @@ async function doLogin() {
 
 // Supabase 매직링크 콜백 처리 (URL 해시에 토큰 포함)
 let pdLoginBusy = false;
+// 주소 끝에 남은 '#' 제거 (주소가 '#'으로 끝나면 location.hash 값이 빈 문자열이라 따로 검사)
+function pdCleanHash() {
+  if (location.href.includes('#')) history.replaceState(null, '', location.pathname + location.search);
+}
 async function handleAuthCallback() {
-  if (currentUser || pdLoginBusy) return;
   const { data, error } = await supaClient.auth.getSession();
+  pdCleanHash();
+  if (currentUser || pdLoginBusy) return;
   if (error || !data.session) return;
   await pdRegisterSession(data.session);
 }
@@ -972,7 +977,7 @@ async function pdRegisterSession(session) {
   } catch (e) { alert('pododa 로그인 오류: ' + e.message); }
   pdLoginBusy = false;
   // URL 해시 제거
-  if (location.hash) history.replaceState(null, '', location.pathname);
+  pdCleanHash();
 }
 
 function doLogout() {
