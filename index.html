@@ -230,24 +230,34 @@ a{text-decoration:none;color:inherit}
     </div>
   </div>
   <div class="page" id="pageMy">
-    <div class="profile-section">
-      <img class="p-img" id="myImg" src="">
-      <div class="p-name" id="myName">로그인 필요</div>
-      <div class="p-email" id="myEmail"></div>
-      <div class="p-stats">
-        <div class="p-stat"><div class="num" id="myPosts">0</div><div class="lbl">게시글</div></div>
-        <div class="p-stat"><div class="num" id="myTrades">0</div><div class="lbl">거래</div></div>
-        <div class="p-stat"><div class="num" id="myScore">0</div><div class="lbl">신뢰</div></div>
-      </div>
+    <!-- 비로그인 상태 -->
+    <div id="myGuest" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 24px">
+      <div style="font-size:48px">👤</div>
+      <p style="font-size:16px;font-weight:600;color:#333">로그인이 필요합니다</p>
+      <p style="font-size:13px;color:#999;text-align:center">coverfo 계정으로 로그인하면<br>글쓰기, 채팅, 찜 등을 이용할 수 있어요</p>
+      <button onclick="document.getElementById('loginPage').classList.add('show')" style="width:100%;max-width:280px;padding:14px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer">로그인 / 회원가입</button>
     </div>
-    <div class="profile-menu">
-      <div class="menu-item" onclick="showMyPosts()"><span class="mi-icon">📝</span>내 게시글</div>
-      <div class="menu-item" onclick="showMyLikes()"><span class="mi-icon">❤️</span>찜 목록</div>
-      <div class="menu-item" onclick="openChatList()"><span class="mi-icon">💬</span>채팅</div>
-      <div class="menu-item" onclick="showNationModal()"><span class="mi-icon">🌍</span>국가 설정</div>
-      <div class="menu-item" onclick="showLangModal()"><span class="mi-icon">🌐</span>언어 설정</div>
-      <div class="menu-item" onclick="editProfile()"><span class="mi-icon">⚙️</span>프로필 수정</div>
-      <div class="menu-item" onclick="doLogout()" style="color:var(--red)"><span class="mi-icon">🚪</span>로그아웃</div>
+    <!-- 로그인 상태 -->
+    <div id="myLoggedIn" style="display:none">
+      <div class="profile-section">
+        <img class="p-img" id="myImg" src="">
+        <div class="p-name" id="myName"></div>
+        <div class="p-email" id="myEmail"></div>
+        <div class="p-stats">
+          <div class="p-stat"><div class="num" id="myPosts">0</div><div class="lbl">게시글</div></div>
+          <div class="p-stat"><div class="num" id="myTrades">0</div><div class="lbl">거래</div></div>
+          <div class="p-stat"><div class="num" id="myScore">0</div><div class="lbl">신뢰</div></div>
+        </div>
+      </div>
+      <div class="profile-menu">
+        <div class="menu-item" onclick="showMyPosts()"><span class="mi-icon">📝</span>내 게시글</div>
+        <div class="menu-item" onclick="showMyLikes()"><span class="mi-icon">❤️</span>찜 목록</div>
+        <div class="menu-item" onclick="openChatList()"><span class="mi-icon">💬</span>채팅</div>
+        <div class="menu-item" onclick="showNationModal()"><span class="mi-icon">🌍</span>국가 설정</div>
+        <div class="menu-item" onclick="showLangModal()"><span class="mi-icon">🌐</span>언어 설정</div>
+        <div class="menu-item" onclick="editProfile()"><span class="mi-icon">⚙️</span>프로필 수정</div>
+        <div class="menu-item" onclick="doLogout()" style="color:var(--red)"><span class="mi-icon">🚪</span>로그아웃</div>
+      </div>
     </div>
   </div>
 </div>
@@ -472,6 +482,7 @@ const subCats = {
 // ===== 초기화 =====
 window.addEventListener('DOMContentLoaded', async () => {
   await handleAuthCallback();
+  updateProfile();
   updateNationUI();
   renderSubCats();
   loadPosts();
@@ -963,13 +974,20 @@ function authHeaders() {
 }
 
 function updateProfile() {
+  const guest = document.getElementById('myGuest');
+  const logged = document.getElementById('myLoggedIn');
   if (currentUser) {
+    guest.style.display = 'none';
+    logged.style.display = 'block';
     document.getElementById('myName').textContent = currentUser.nickname || '사용자';
     document.getElementById('myEmail').textContent = currentUser.email || '';
     document.getElementById('myImg').src = currentUser.profile_img || '';
     document.getElementById('myPosts').textContent = currentUser.post_count || 0;
     document.getElementById('myTrades').textContent = currentUser.trade_count || 0;
     document.getElementById('myScore').textContent = currentUser.trust_score || 0;
+  } else {
+    guest.style.display = 'flex';
+    logged.style.display = 'none';
   }
 }
 
