@@ -117,6 +117,11 @@ export default {
         return cors(await getNotifications(userId, env));
       }
 
+      // ===== 위치 동의 철회: 위치정보 이용·제공사실 확인자료 파기 (위치기반서비스 이용약관 제6조) =====
+      if (path === '/api/location' && method === 'DELETE') {
+        return cors(await deleteLocationLog(url, userId, env));
+      }
+
       // ===== 신고 =====
       if (path === '/api/report' && method === 'POST') {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
@@ -704,12 +709,35 @@ async function logLocationUse(env, who, request, service, providedTo) {
         used_at TEXT NOT NULL)`).run();
       locLogReady = true;
     }
+    // 보관기간 1년이 지난 기록 파기 (약관 제5조) — 가끔(약 2%) 한 번씩
+    if (Math.random() < 0.02) {
+      await env.DB.prepare(`DELETE FROM pd_location_log WHERE used_at < datetime('now', '-1 year')`).run();
+    }
     const ua = (request && request.headers.get('User-Agent')) || '';
     const os = /iPhone|iPad|iPod|Macintosh/i.test(ua) ? 'apple' : /Android/i.test(ua) ? 'android' : 'other';
     await env.DB.prepare(
       `INSERT INTO pd_location_log (user_id, source, service, provided_to, used_at) VALUES (?,?,?,?,datetime('now'))`
     ).bind(String(who || 'anon'), 'browser_geolocation_' + os, service, providedTo || '').run();
   } catch (e) { /* 기록 실패가 화면을 막지 않게 */ }
+}
+
+
+// 동의 철회 시 본인 기록 파기: 로그인했으면 계정 ID, 그리고 이 기기의 무작위 ID 기록
+async function deleteLocationLog(url, userId, env) {
+  const dev = url.searchParams.get('dev') || '';
+  const ids = [];
+  if (userId) ids.push(String(userId));
+  if (/^[A-Za-z0-9-]{8,64}$/.test(dev)) ids.push('dev:' + dev);
+  if (!ids.length) return json({ error: 'no_id' }, 400);
+  try {
+    const r = await env.DB.prepare(
+      `DELETE FROM pd_location_log WHERE user_id IN (${ids.map(() => '?').join(',')})`
+    ).bind(...ids).run();
+    return json({ ok: true, deleted: r.meta?.changes || 0 });
+  } catch (e) {
+    if (/no such table/i.test(e.message || '')) return json({ ok: true, deleted: 0 });
+    throw e;
+  }
 }
 
 
