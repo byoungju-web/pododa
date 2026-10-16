@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#7C3AED">
 <link rel="manifest" href="/manifest.json">
 <title>pododa</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--pri:#7C3AED;--pri2:#6D28D9;--bg:#f5f5f5;--white:#fff;--gray:#888;--lgray:#e5e5e5;--dgray:#333;--red:#ef4444;--green:#22c55e;--orange:#f59e0b;--radius:12px}
@@ -909,18 +909,25 @@ const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) { alert('이메일을 입력하세요'); return; }
+  if (!window.supabase) { alert('Supabase SDK 로드 실패. 페이지를 새로고침 해주세요.'); return; }
   const btn = document.querySelector('.login-btn');
   btn.textContent = '전송 중...';
   btn.disabled = true;
-  const { error } = await supaClient.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: location.origin + '/' }
-  });
-  btn.textContent = '매직 링크 보내기';
-  btn.disabled = false;
-  if (error) { alert('전송 실패: ' + error.message); return; }
-  alert('매직 링크를 보냈습니다!\n이메일을 확인해 주세요.');
-  document.getElementById('loginPage').classList.remove('show');
+  try {
+    const { error } = await supaClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: location.origin + '/' }
+    });
+    btn.textContent = '매직 링크 보내기';
+    btn.disabled = false;
+    if (error) { alert('전송 실패: ' + error.message); return; }
+    alert('매직 링크를 보냈습니다!\n이메일을 확인해 주세요.');
+    document.getElementById('loginPage').classList.remove('show');
+  } catch (e) {
+    btn.textContent = '매직 링크 보내기';
+    btn.disabled = false;
+    alert('로그인 오류: ' + e.message);
+  }
 }
 
 // Supabase 매직링크 콜백 처리 (URL 해시에 토큰 포함)
