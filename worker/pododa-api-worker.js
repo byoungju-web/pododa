@@ -16,6 +16,11 @@ export default {
     // CORS
     if (method === 'OPTIONS') return corsResponse();
 
+    // R2 사진 내보내기: GET /media/<저장 경로>
+    if (path.startsWith('/media/') && (method === 'GET' || method === 'HEAD')) {
+      return serveMedia(decodeURIComponent(path.slice('/media/'.length)), request, env);
+    }
+
     // API 라우팅
     if (!path.startsWith('/api')) {
       return new Response('Not Found', { status: 404 });
@@ -189,7 +194,7 @@ async function createPost(request, userId, env) {
         await env.MEDIA.put(filename, val.stream(), {
           httpMetadata: { contentType: val.type }
         });
-        imageUrls.push(`/media/${filename}`);
+        imageUrls.push(`${new URL(request.url).origin}/media/${filename}`);
       } else {
         data[key] = val;
       }
@@ -555,7 +560,24 @@ async function uploadImage(request, userId, env) {
     httpMetadata: { contentType: file.type }
   });
 
-  return json({ ok: true, url: `/media/${filename}` });
+  return json({ ok: true, url: `${new URL(request.url).origin}/media/${filename}` });
+}
+
+// R2 에 저장된 사진을 내보냄 (posts/·uploads/ 폴더만 허용)
+async function serveMedia(key, request, env) {
+  if (!key || key.includes('..') || !(key.startsWith('posts/') || key.startsWith('uploads/'))) {
+    return new Response('Not Found', { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } });
+  }
+  const obj = await env.MEDIA.get(key);
+  if (!obj) {
+    return new Response('Not Found', { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } });
+  }
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set('etag', obj.httpEtag);
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Access-Control-Allow-Origin', '*');
+  return new Response(request.method === 'HEAD' ? null : obj.body, { headers });
 }
 
 
