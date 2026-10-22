@@ -104,6 +104,15 @@ export default {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
         return cors(await updateProfile(userId, request, env));
       }
+      // v21 내 게시글 · 찜 목록
+      if (path === '/api/me/posts' && method === 'GET') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await getMyPosts(userId, env));
+      }
+      if (path === '/api/me/likes' && method === 'GET') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await getMyLikes(userId, env));
+      }
       // v20 회원 탈퇴: 환불 계획 미리보기 · 탈퇴 실행
       if (path === '/api/me/withdraw-plan' && method === 'POST') {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
@@ -296,6 +305,29 @@ async function incrementView(postId, env) {
 // ========================================
 // 찜 (Like)
 // ========================================
+
+// v21 내가 쓴 글 (최근 200개)
+async function getMyPosts(userId, env) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.*, u.nickname, u.profile_img, u.trust_score
+     FROM pd_posts p LEFT JOIN pd_users u ON p.user_id = u.id
+     WHERE p.is_deleted = 0 AND p.user_id = ?
+     ORDER BY p.created_at DESC LIMIT 200`
+  ).bind(userId).all();
+  return json({ posts: (results || []).map(publicPost) });
+}
+
+// v21 내가 찜한 글 (최근 200개)
+async function getMyLikes(userId, env) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.*, u.nickname, u.profile_img, u.trust_score
+     FROM pd_likes l JOIN pd_posts p ON l.post_id = p.id
+     LEFT JOIN pd_users u ON p.user_id = u.id
+     WHERE l.user_id = ? AND p.is_deleted = 0
+     ORDER BY p.created_at DESC LIMIT 200`
+  ).bind(userId).all();
+  return json({ posts: (results || []).map(publicPost) });
+}
 
 async function toggleLike(postId, userId, env) {
   const existing = await env.DB.prepare(
