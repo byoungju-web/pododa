@@ -263,7 +263,7 @@ a{text-decoration:none;color:inherit}
     <div id="myLoggedIn" style="display:none">
       <div class="profile-section">
         <img class="p-img" id="myImg" src="">
-        <div class="p-name" id="myName"></div>
+        <div class="p-name" id="myName" data-cf-noui="1"></div>
         <div class="p-email" id="myEmail"></div>
         <div class="p-stats">
           <div class="p-stat"><div class="num" id="myPosts">0</div><div class="lbl">게시글</div></div>
@@ -304,18 +304,18 @@ a{text-decoration:none;color:inherit}
 <div class="detail-page" id="detailPage">
   <div class="detail-header">
     <span class="back" onclick="closeDetail()">←</span>
-    <span class="dtitle" id="detailTitle"></span>
+    <span class="dtitle" id="detailTitle" data-cf-noui="1"></span>
     <span style="cursor:pointer;font-size:18px" onclick="reportPost()">⚠️</span>
   </div>
   <div class="detail-images" id="detailImages"></div>
   <div class="detail-body">
-    <div class="seller-row" id="detailSeller"></div>
+    <div class="seller-row" id="detailSeller" data-cf-noui="1"></div>
     <div id="detailStatusBadge"></div>
-    <div class="d-title" id="dTitle"></div>
+    <div class="d-title" id="dTitle" data-cf-noui="1"></div>
     <div class="d-price" id="dPrice"></div>
     <div class="d-meta" id="dMeta"></div>
-    <div class="d-text" id="dBody"></div>
-    <div id="dExtra"></div>
+    <div class="d-text" id="dBody" data-cf-noui="1"></div>
+    <div id="dExtra" data-cf-noui="1"></div>
     <div class="d-stats" id="dStats"></div>
   </div>
 </div>
@@ -448,6 +448,16 @@ a{text-decoration:none;color:inherit}
   <div class="modal-content">
     <h3>🌍 국가 선택</h3>
     <div class="nation-list" id="nationList"></div>
+  </div>
+</div>
+
+<!-- ===== 화면 언어 (v22, coverfo 와 같은 방식) ===== -->
+<div class="modal-overlay" id="langModal" onclick="if(event.target===this)closeLangModal()">
+  <div class="modal-content">
+    <h3>🌐 화면 언어</h3>
+    <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:8px">언어를 고르면 화면이 그 나라 말로 바뀌어요. <b>자동</b>이면 폰 시간대로 알아서 골라요 (위치(GPS)는 받지 않아요) — 해외에 가면 그 나라 말로 자동 번역됩니다. 한 번 번역한 문장은 이 기기에 저장돼 다음부터 바로 바뀌어요.</p>
+    <div id="langChips"></div>
+    <p style="font-size:11.5px;color:#999;margin-top:10px">이용자가 쓴 글·닉네임·채팅 내용은 원문 그대로 보여요.</p>
   </div>
 </div>
 
@@ -863,9 +873,9 @@ function renderPostCard(p) {
   return `<div class="post-card" onclick="openDetail(${p.id})">
     <img class="thumb" src="${img || ''}" onerror="this.style.background='var(--lgray)';this.src=''">
     <div class="info">
-      <div class="title">${statusText ? `<span class="status-badge ${statusClass}">${statusText}</span> ` : ''}${esc(p.title)}</div>
+      <div class="title">${statusText ? `<span class="status-badge ${statusClass}">${statusText}</span> ` : ''}<span data-cf-noui="1">${esc(p.title)}</span></div>
       <div class="price">${p.price ? p.price + ' ' + (p.currency||'') : '가격 없음'}</div>
-      <div style="font-size:12px;color:var(--gray)">${esc(p.address || '')}</div>
+      <div style="font-size:12px;color:var(--gray)" data-cf-noui="1">${esc(p.address || '')}</div>
       <div class="meta">
         <span>❤️ ${p.like_count||0}</span>
         <span>💬 ${p.chat_count||0}</span>
@@ -905,7 +915,7 @@ async function openDetail(postId) {
       : p.sale_status === 2 ? '<span class="status-badge status-done" style="margin-top:12px">거래완료</span>' : '';
     document.getElementById('dTitle').textContent = p.title;
     document.getElementById('dPrice').textContent = p.price ? `${p.price} ${p.currency || ''}` : '';
-    document.getElementById('dMeta').innerHTML = `<span>📍 ${esc(p.address || '')}</span><span>🕐 ${timeAgo(p.created_at)}</span>`;
+    document.getElementById('dMeta').innerHTML = `<span data-cf-noui="1">📍 ${esc(p.address || '')}</span><span>🕐 ${timeAgo(p.created_at)}</span>`;
     document.getElementById('dBody').textContent = p.body || '';
     // 배달/내주변 추가 정보
     let extra = '';
@@ -1111,8 +1121,8 @@ async function loadChatRooms() {
       <div class="chat-item" onclick="openChatRoom('${r.id}','${esc(r.other_name)}')">
         <img src="${r.other_img || ''}" onerror="this.src=''">
         <div class="c-info">
-          <div class="c-name">${esc(r.other_name)}</div>
-          <div class="c-msg">${esc(r.last_msg || '')}</div>
+          <div class="c-name" data-cf-noui="1">${esc(r.other_name)}</div>
+          <div class="c-msg" data-cf-noui="1">${esc(r.last_msg || '')}</div>
         </div>
         <div class="c-right">
           <div class="c-time">${r.last_time ? timeAgo(r.last_time) : ''}</div>
@@ -1153,7 +1163,7 @@ function renderMessages(msgs) {
   const el = document.getElementById('chatMessages');
   if (!msgs.length) { el.innerHTML = '<div class="empty" style="padding:40px"><p>메시지를 보내보세요!</p></div>'; return; }
   el.innerHTML = msgs.map(m => `
-    <div class="chat-msg ${m.sender === currentUser?.id ? 'mine' : 'theirs'}">
+    <div class="chat-msg ${m.sender === currentUser?.id ? 'mine' : 'theirs'}" data-cf-noui="1">
       ${esc(m.msg)}
       <div class="msg-time">${timeAgo(m.created_at)}</div>
     </div>`).join('');
@@ -1411,7 +1421,14 @@ async function openMyList(kind, title, emptyText) {
     body.innerHTML = `<div class="empty">목록을 불러오지 못했어요: ${esc(String(e.message))}</div>`;
   }
 }
-function showLangModal() { alert('언어 설정 - 준비 중'); }
+function showLangModal() {
+  const box = document.getElementById('langChips');
+  if (!window.pdUiLang) { box.innerHTML = '<p style="color:var(--red);font-size:13px">언어 기능을 불러오지 못했어요. 새로 고침 후 다시 열어 주세요.</p>'; }
+  else if (!box.dataset.mounted) { pdUiLang.mount(box); box.dataset.mounted = '1'; }
+  else box.innerHTML = pdUiLang.chipsHtml();
+  document.getElementById('langModal').classList.add('show');
+}
+function closeLangModal() { document.getElementById('langModal').classList.remove('show'); }
 function reportPost() { if(confirm('이 게시글을 신고하시겠습니까?')) alert('신고가 접수되었습니다'); }
 // 글 등록의 '📍 현재 위치' — 이 글의 위치로만 쓴다 (내주변 검색 위치와 별개)
 function getMyLocation() {
@@ -1644,6 +1661,7 @@ const PD_BACK_LAYERS = [
   ['profilePage', () => closeDoc('profilePage')],
   ['withdrawPage', () => closeDoc('withdrawPage')],
   ['termsPage', () => closeDoc('termsPage')],
+  ['langModal', () => closeLangModal()],
   ['nationModal', () => closeNationModal()],
   ['locConsentModal', () => declineLoc()],
   ['loginPage', () => document.getElementById('loginPage').classList.remove('show')],
@@ -1651,6 +1669,7 @@ const PD_BACK_LAYERS = [
   ['chatListPage', () => closeChatList()],
   ['regPage', () => closeRegister()],
   ['detailPage', () => closeDetail()],
+  ['myListPage', () => closeDoc('myListPage')],
   ['searchPage', () => closeSearch()]
 ];
 let pdExitArmed = false;
@@ -1708,5 +1727,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
 </script>
+<script src="/pd-ui-lang.js"></script>
 </body>
 </html>
