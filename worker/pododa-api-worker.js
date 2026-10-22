@@ -104,6 +104,15 @@ export default {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
         return cors(await updateProfile(userId, request, env));
       }
+      // v20 회원 탈퇴: 환불 계획 미리보기 · 탈퇴 실행
+      if (path === '/api/me/withdraw-plan' && method === 'POST') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await withdrawPlan(userId, request, env));
+      }
+      if (path === '/api/me/withdraw' && method === 'POST') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await withdraw(userId, request, env));
+      }
 
       // ===== 인증 콜백 =====
       if (path === '/api/auth/callback' && method === 'POST') {
@@ -510,8 +519,17 @@ async function updateProfile(userId, request, env) {
   const fields = [];
   const params = [];
 
-  if (data.nickname !== undefined) { fields.push('nickname = ?'); params.push(data.nickname); }
-  if (data.profile_img !== undefined) { fields.push('profile_img = ?'); params.push(data.profile_img); }
+  /* v20 프로필 수정: 닉네임 1~20자, 사진은 https 주소(또는 빈 값 = 기본 사진)만 */
+  if (data.nickname !== undefined) {
+    const nick = String(data.nickname || '').replace(/[\u0000-\u001f<>]/g, '').trim();
+    if (nick.length < 1 || nick.length > 20) return json({ error: 'nickname_length', message: '닉네임은 1~20자로 적어 주세요' }, 400);
+    fields.push('nickname = ?'); params.push(nick);
+  }
+  if (data.profile_img !== undefined) {
+    const img = String(data.profile_img || '').trim();
+    if (img && !/^https:\/\/[^\s"'<>]{4,500}$/.test(img)) return json({ error: 'bad_image' }, 400);
+    fields.push('profile_img = ?'); params.push(img);
+  }
   if (data.nation_code !== undefined) { fields.push('nation_code = ?'); params.push(data.nation_code); }
   if (data.lang_code !== undefined) { fields.push('lang_code = ?'); params.push(data.lang_code); }
   // lat·lng·radius 는 받지 않는다 — 이용자 위치는 서버에 저장하지 않음 (위치기반서비스 신고 내용)
@@ -522,7 +540,91 @@ async function updateProfile(userId, request, env) {
   await env.DB.prepare(`UPDATE pd_users SET ${fields.join(', ')} WHERE id = ?`)
     .bind(...params).run();
 
-  return json({ ok: true });
+  const user = await env.DB.prepare('SELECT * FROM pd_users WHERE id = ?').bind(userId).first();
+  return json({ ok: true, user });
+}
+
+
+// ========================================
+// v20 회원 탈퇴 (크레딧 환불 포함)
+//  · scope 'pododa' : pododa 정보만 지움 (coverfo 계정·크레딧은 그대로 — coverfo·포도톡에서 계속 사용)
+//  · scope 'all'    : coverfo 계정까지 탈퇴. coverfo 서버(/api/account-delete)가 남은 충전 크레딧을
+//                     토스 결제 취소로 환불한 뒤 계정을 지운다. 환불이 하나라도 실패하면 아무것도 지우지 않는다.
+//  · 화면은 coverfo 로그인 토큰(sb_token)을 함께 보낸다 — pododa 계정과 같은 사람인지 확인한 뒤에만 coverfo 에 넘김
+// ========================================
+async function sbUserId(token, env) {
+  if (!token) return '';
+  try {
+    const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: env.SUPABASE_ANON || '' } });
+    if (!r.ok) return '';
+    const u = await r.json();
+    return u && u.id ? String(u.id) : '';
+  } catch { return ''; }
+}
+
+async function coverfoAccount(token, body, env) {
+  const base = (env.COVERFO_URL || 'https://coverfo.com').replace(/\/+$/, '');
+  const r = await fetch(`${base}/api/account-delete`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  return { status: r.status, j };
+}
+
+async function withdrawPlan(userId, request, env) {
+  const data = await request.json().catch(() => ({}));
+  const token = String(data.sb_token || '');
+  if ((await sbUserId(token, env)) !== String(userId)) return json({ error: 'relogin', message: '보안을 위해 다시 로그인해 주세요' }, 401);
+  const { status, j } = await coverfoAccount(token, { op: 'plan' }, env);
+  if (status !== 200) return json({ error: 'plan_failed', message: j.error || j.message || ('coverfo ' + status) }, 502);
+  return json({ ok: true, plan: j.data || j });
+}
+
+async function deletePrefix(env, prefix) {
+  let cursor;
+  do {
+    const l = await env.MEDIA.list({ prefix, cursor });
+    if (l.objects.length) await env.MEDIA.delete(l.objects.map((o) => o.key));
+    cursor = l.truncated ? l.cursor : undefined;
+  } while (cursor);
+}
+
+async function deletePododaData(userId, env) {
+  const u = String(userId);
+  const run = async (sql, ...b) => { try { await env.DB.prepare(sql).bind(...b).run(); } catch (e) { /* 없는 표는 건너뜀 */ } };
+  try { await deletePrefix(env, `posts/${u}/`); } catch (e) {}
+  try { await deletePrefix(env, `uploads/${u}/`); } catch (e) {}
+  await run('DELETE FROM pd_likes WHERE user_id = ? OR post_id IN (SELECT id FROM pd_posts WHERE user_id = ?)', u, u);
+  await run('DELETE FROM pd_offers WHERE buyer_id = ? OR seller_id = ? OR post_id IN (SELECT id FROM pd_posts WHERE user_id = ?)', u, u, u);
+  await run('DELETE FROM pd_notifications WHERE user_id = ?', u);
+  await run('DELETE FROM pd_chat_msgs WHERE room_id IN (SELECT id FROM pd_chat_rooms WHERE user1 = ? OR user2 = ?)', u, u);
+  await run('DELETE FROM pd_chat_rooms WHERE user1 = ? OR user2 = ?', u, u);
+  await run('DELETE FROM pd_posts WHERE user_id = ?', u);
+  await run('DELETE FROM pd_location_log WHERE user_id = ?', u);
+  /* 신고 기록은 개인정보 처리방침에 따라 처리 완료 후 1년 보관 */
+  await env.DB.prepare('DELETE FROM pd_users WHERE id = ?').bind(u).run();
+}
+
+async function withdraw(userId, request, env) {
+  const data = await request.json().catch(() => ({}));
+  if (String(data.confirm || '') !== '탈퇴') return json({ error: 'confirm', message: '확인 문구 "탈퇴" 를 적어 주세요' }, 400);
+  const scope = data.scope === 'all' ? 'all' : 'pododa';
+  let refund = null;
+  if (scope === 'all') {
+    const token = String(data.sb_token || '');
+    if ((await sbUserId(token, env)) !== String(userId)) return json({ error: 'relogin', message: '보안을 위해 다시 로그인해 주세요' }, 401);
+    const { status, j } = await coverfoAccount(token, { op: 'delete', confirm: '탈퇴', refund: data.refund !== false, account: data.account || undefined }, env);
+    const d = j.data || j;
+    if (status !== 200 || !d || d.ok === false) {
+      /* 환불 실패 등 — pododa 정보도 지우지 않고 멈춘다 */
+      return json({ error: 'coverfo_failed', message: (d && d.error) || j.error || ('coverfo ' + status), refund: d && d.refund }, 502);
+    }
+    refund = d.refund || null;
+  }
+  await deletePododaData(userId, env);
+  return json({ ok: true, scope, refund });
 }
 
 
