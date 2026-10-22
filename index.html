@@ -158,10 +158,12 @@ a{text-decoration:none;color:inherit}
 .nation-list .n-item.active{border-color:var(--pri);background:rgba(124,58,237,.1);color:var(--pri);font-weight:600}
 
 /* 검색 */
-.search-page{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--white);z-index:200;display:none}
+.search-page{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--white);z-index:195;display:none;overflow-y:auto}
 .search-page.show{display:block}
 .search-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--lgray)}
 .search-bar input{flex:1;padding:10px 14px;border:1px solid var(--lgray);border-radius:20px;font-size:14px;outline:none}
+.search-bar form{flex:1;display:flex;gap:6px}
+.search-bar .go{flex:none;width:42px;height:40px;border:none;border-radius:20px;background:var(--pri);color:#fff;font-size:17px;cursor:pointer}
 .search-bar .cancel{font-size:14px;color:var(--pri);cursor:pointer;white-space:nowrap}
 .search-results{padding:8px 0}
 
@@ -191,6 +193,19 @@ a{text-decoration:none;color:inherit}
 .lbs-body th{background:#f6f5fb}
 .lbs-body .dc-date{font-size:12px;color:var(--gray);margin-bottom:12px}
 
+/* 알림 (v24) */
+.noti-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--lgray);font-size:14px}
+.noti-row .nr-txt{flex:1;min-width:0}
+.noti-row .nr-sub{font-size:12px;color:var(--gray);margin-top:2px}
+.noti-sw{position:relative;width:46px;height:26px;flex:none}
+.noti-sw input{opacity:0;width:0;height:0}
+.noti-sw span{position:absolute;inset:0;background:#ccc;border-radius:13px;transition:.2s;cursor:pointer}
+.noti-sw span:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.noti-sw input:checked+span{background:var(--pri)}
+.noti-sw input:checked+span:before{transform:translateX(20px)}
+.noti-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--lgray);cursor:pointer;font-size:14px}
+.noti-item .ni-cnt{margin-left:auto;background:var(--red);color:#fff;border-radius:9px;min-width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+
 /* 유틸 */
 .hide{display:none!important}
 </style>
@@ -201,6 +216,7 @@ a{text-decoration:none;color:inherit}
 <div class="topbar">
   <div class="logo">pododa</div>
   <button class="icon-btn" onclick="openSearch()">🔍</button>
+  <button class="icon-btn" id="notiBtn" onclick="openNoti()" aria-label="알림">🔔<span class="badge hide" id="notiBadge"></span></button>
 </div>
 
 <!-- ===== 탭 ===== -->
@@ -437,7 +453,10 @@ a{text-decoration:none;color:inherit}
 <!-- ===== 검색 ===== -->
 <div class="search-page" id="searchPage">
   <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="검색어 입력..." onkeydown="if(event.key==='Enter')doSearch()">
+    <form onsubmit="event.preventDefault();doSearch()" role="search">
+      <input type="search" id="searchInput" placeholder="검색어 입력..." enterkeyhint="search" autocomplete="off" oninput="searchTyping()">
+      <button type="submit" class="go" aria-label="검색">🔍</button>
+    </form>
     <span class="cancel" onclick="closeSearch()">취소</span>
   </div>
   <div class="search-results" id="searchResults"></div>
@@ -448,6 +467,22 @@ a{text-decoration:none;color:inherit}
   <div class="modal-content">
     <h3>🌍 국가 선택</h3>
     <div class="nation-list" id="nationList"></div>
+  </div>
+</div>
+
+<!-- ===== 알림 (v24) ===== -->
+<div class="modal-overlay" id="notiModal" onclick="if(event.target===this)closeNoti()">
+  <div class="modal-content">
+    <h3>🔔 알림</h3>
+    <div id="notiList"></div>
+    <h3 style="margin-top:18px">⚙️ 알림 설정</h3>
+    <div class="noti-row"><div class="nr-txt">새 채팅 알림<div class="nr-sub">새 메시지가 오면 🔔 에 숫자를 띄우고 알려 줘요</div></div>
+      <label class="noti-sw"><input type="checkbox" id="notiOn" onchange="notiSet('pd_noti_on',this.checked)"><span></span></label></div>
+    <div class="noti-row"><div class="nr-txt">소리 · 진동<div class="nr-sub">새 메시지가 오면 짧게 울리고 진동해요</div></div>
+      <label class="noti-sw"><input type="checkbox" id="notiSound" onchange="notiSet('pd_noti_sound',this.checked)"><span></span></label></div>
+    <div class="noti-row"><div class="nr-txt">휴대폰 알림창에 띄우기<div class="nr-sub" id="notiSysSub">앱을 내려 두었을 때도 알림창에 보여 줘요</div></div>
+      <label class="noti-sw"><input type="checkbox" id="notiSys" onchange="notiSysToggle(this)"><span></span></label></div>
+    <p style="font-size:11.5px;color:#999;margin-top:10px;line-height:1.6">pododa 가 열려 있거나 내려 둔 동안 30초마다 새 메시지를 확인해요. 앱을 완전히 닫으면 알림이 오지 않아요.</p>
   </div>
 </div>
 
@@ -1110,6 +1145,7 @@ async function loadChatRooms() {
   try {
     const res = await fetch(`${API}/chat/rooms`, { headers: authHeaders() });
     const data = await res.json();
+    if (data.rooms) notiApply(data.rooms, false);
     const el = document.getElementById('chatRoomList');
     if (!data.rooms || data.rooms.length === 0) {
       el.innerHTML = '';
@@ -1157,7 +1193,7 @@ async function openChatRoom(roomId, name, otherUserId, postId) {
     document.getElementById('chatMessages').innerHTML = '<div class="empty" style="padding:40px"><p>메시지를 보내보세요!</p></div>';
   }
 }
-function closeChatRoom() { document.getElementById('chatRoomPage').classList.remove('show'); }
+function closeChatRoom() { document.getElementById('chatRoomPage').classList.remove('show'); notiCheck(false); }
 
 function renderMessages(msgs) {
   const el = document.getElementById('chatMessages');
@@ -1200,17 +1236,36 @@ async function sendMsg() {
 function openSearch() { document.getElementById('searchPage').classList.add('show'); document.getElementById('searchInput').focus(); }
 function closeSearch() { document.getElementById('searchPage').classList.remove('show'); }
 
-async function doSearch() {
+// v24: 🔍 버튼·키보드 검색 키·글자 입력 후 잠깐 멈추면 자동 검색
+let searchT = null, searchSeq = 0;
+function searchTyping() {
+  clearTimeout(searchT);
   const q = document.getElementById('searchInput').value.trim();
-  if (!q) return;
+  if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
+  searchT = setTimeout(doSearch, 500);
+}
+async function doSearch() {
+  clearTimeout(searchT);
+  const input = document.getElementById('searchInput');
+  const q = input.value.trim();
+  const box = document.getElementById('searchResults');
+  if (!q) { input.focus(); return; }
+  const my = ++searchSeq;
+  box.innerHTML = '<div class="loading">검색 중…</div>';
   try {
     let url = `${API}/search?q=${encodeURIComponent(q)}`;
     if (currentTab !== 4) url += `&nation=${currentNation}`;
     const res = await fetch(url);
     const data = await res.json();
-    document.getElementById('searchResults').innerHTML = (data.posts || []).map(p => renderPostCard(p)).join('') || '<div class="empty"><p>검색 결과가 없어요</p></div>';
+    if (my !== searchSeq) return;   // 더 새 검색이 시작됐으면 버림
+    if (!res.ok) throw new Error(data.message || data.error || res.status);
+    const posts = data.posts || [];
+    box.innerHTML = posts.length
+      ? `<div style="padding:8px 16px 0;font-size:12px;color:var(--gray)">'${esc(q)}' 검색 결과 ${posts.length}개</div>` + posts.map(p => renderPostCard(p)).join('')
+      : `<div class="empty"><div class="empty-icon">🔍</div><p>'${esc(q)}' 검색 결과가 없어요</p></div>`;
   } catch(e) {
-    document.getElementById('searchResults').innerHTML = '<div class="empty"><p>검색 결과가 없어요</p></div>';
+    if (my !== searchSeq) return;
+    box.innerHTML = `<div class="empty"><p>검색하지 못했어요: ${esc(String(e.message || e))}</p></div>`;
   }
 }
 
@@ -1396,6 +1451,7 @@ function updateProfile() {
     guest.style.display = 'flex';
     logged.style.display = 'none';
   }
+  notiCheck(false);
 }
 
 // ===== v21 내 게시글 · 찜 목록 =====
@@ -1429,6 +1485,83 @@ function showLangModal() {
   document.getElementById('langModal').classList.add('show');
 }
 function closeLangModal() { document.getElementById('langModal').classList.remove('show'); }
+
+// ===== v24 알림 (🔔) =====
+// 서버의 채팅방별 안 읽은 수(unread)를 30초마다 확인 → 🔔 숫자 · 소리/진동 · 휴대폰 알림창
+function notiGet(k) { try { return localStorage.getItem(k) !== '0'; } catch (e) { return true; } }
+function notiSet(k, on) { try { localStorage.setItem(k, on ? '1' : '0'); } catch (e) {} if (k === 'pd_noti_on') notiCheck(); }
+let notiLast = -1, notiRooms = [];
+function notiApply(rooms, alertNew) {
+  notiRooms = rooms || [];
+  const total = notiRooms.reduce((a, r) => a + (r.unread || 0), 0);
+  const badge = document.getElementById('notiBadge');
+  const show = total > 0 && notiGet('pd_noti_on');
+  badge.textContent = total > 99 ? '99+' : total;
+  badge.classList.toggle('hide', !show);
+  if (alertNew && notiLast >= 0 && total > notiLast && notiGet('pd_noti_on')) notiAlert(total - notiLast);
+  notiLast = total;
+}
+async function notiCheck(alertNew) {
+  if (!currentUser) { notiLast = -1; document.getElementById('notiBadge').classList.add('hide'); return; }
+  try {
+    const r = await fetch(`${API}/chat/rooms`, { headers: authHeaders() });
+    if (!r.ok) return;
+    const d = await r.json();
+    notiApply(d.rooms || [], !!alertNew);
+  } catch (e) {}
+}
+function notiBeep() {
+  try {
+    const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+    const c = new C(), o = c.createOscillator(), g = c.createGain();
+    o.frequency.value = 880; g.gain.value = 0.15; o.connect(g); g.connect(c.destination);
+    o.start(); o.stop(c.currentTime + 0.18); setTimeout(() => { try { c.close(); } catch (e) {} }, 400);
+  } catch (e) {}
+}
+function notiAlert(n) {
+  const msg = `💬 새 채팅 메시지 ${n}개가 왔어요`;
+  if (notiGet('pd_noti_sound')) { notiBeep(); try { navigator.vibrate && navigator.vibrate(200); } catch (e) {} }
+  if (document.hidden && notiSysOn()) {
+    try { navigator.serviceWorker.ready.then(reg => reg.showNotification('pododa', { body: msg, icon: '/icon-192.png', tag: 'pd-chat', renotify: true, data: { url: '/' } })); } catch (e) {}
+  } else pdToast(msg);
+}
+function notiSysOn() { try { return localStorage.getItem('pd_noti_sys') === '1' && 'Notification' in window && Notification.permission === 'granted'; } catch (e) { return false; } }
+async function notiSysToggle(el) {
+  const sub = document.getElementById('notiSysSub');
+  if (!el.checked) { notiSet('pd_noti_sys', false); return; }
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) { el.checked = false; sub.textContent = '이 브라우저는 알림창 표시를 지원하지 않아요'; return; }
+  let perm = Notification.permission;
+  if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch (e) {} }
+  if (perm !== 'granted') { el.checked = false; notiSet('pd_noti_sys', false); sub.textContent = '알림이 차단돼 있어요. 브라우저 설정 → 사이트 설정 → 알림에서 pododa.kr 을 허용해 주세요'; return; }
+  notiSet('pd_noti_sys', true); sub.textContent = '켜졌어요. 앱을 내려 두었을 때 알림창에 보여 줘요';
+}
+async function openNoti() {
+  if (!checkLogin()) return;
+  document.getElementById('notiOn').checked = notiGet('pd_noti_on');
+  document.getElementById('notiSound').checked = notiGet('pd_noti_sound');
+  document.getElementById('notiSys').checked = notiSysOn();
+  const list = document.getElementById('notiList');
+  list.innerHTML = '<div class="loading" style="padding:16px">불러오는 중…</div>';
+  document.getElementById('notiModal').classList.add('show');
+  await notiCheck(false);
+  let html = notiRooms.filter(r => r.unread > 0).map(r =>
+    `<div class="noti-item" onclick="closeNoti();openChatRoom('${r.id}','${esc(r.other_name)}')">💬 <span><span data-cf-noui="1">${esc(r.other_name)}</span>님의 새 메시지</span><span class="ni-cnt">${r.unread}</span></div>`).join('');
+  try {   // 가격 제안 등 (서버가 보여 준 알림은 읽음 처리됨)
+    const r = await fetch(`${API}/notifications`, { headers: authHeaders() });
+    if (r.ok) {
+      const d = await r.json();
+      html += (d.notifications || []).slice(0, 20).map(n => {
+        const pid = (String(n.link || '').match(/\/post\/(\d+)/) || [])[1];
+        return `<div class="noti-item" ${pid ? `onclick="closeNoti();openDetail(${pid})"` : ''}>💰 ${esc(n.title || '알림')} <span data-cf-noui="1" style="color:var(--gray)">${esc(n.body || '')}</span><span style="margin-left:auto;font-size:11px;color:var(--gray)">${n.created_at ? timeAgo(n.created_at) : ''}</span></div>`;
+      }).join('');
+    }
+  } catch (e) {}
+  list.innerHTML = html || '<div style="padding:14px 0;color:var(--gray);font-size:14px">새 알림이 없어요</div>';
+}
+function closeNoti() { document.getElementById('notiModal').classList.remove('show'); }
+setInterval(() => { if (!document.hidden || notiSysOn()) notiCheck(true); }, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) notiCheck(true); });
+setTimeout(() => notiCheck(false), 1500);
 function reportPost() { if(confirm('이 게시글을 신고하시겠습니까?')) alert('신고가 접수되었습니다'); }
 // 글 등록의 '📍 현재 위치' — 이 글의 위치로만 쓴다 (내주변 검색 위치와 별개)
 function getMyLocation() {
@@ -1661,6 +1794,7 @@ const PD_BACK_LAYERS = [
   ['profilePage', () => closeDoc('profilePage')],
   ['withdrawPage', () => closeDoc('withdrawPage')],
   ['termsPage', () => closeDoc('termsPage')],
+  ['notiModal', () => closeNoti()],
   ['langModal', () => closeLangModal()],
   ['nationModal', () => closeNationModal()],
   ['locConsentModal', () => declineLoc()],

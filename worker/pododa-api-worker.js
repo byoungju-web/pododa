@@ -506,10 +506,12 @@ async function sendChatMessage(roomId, userId, request, env) {
 async function searchPosts(url, env) {
   const q = (url.searchParams.get('q') || '').toLowerCase();
   const nation = url.searchParams.get('nation') || '';
-  if (!q) return json({ posts: [] });
+  if (!q.trim()) return json({ posts: [] });
 
-  let where = "p.is_deleted = 0 AND p.search_text LIKE ?";
-  let params = [`%${q}%`];
+  // v24: 띄어쓰기와 상관없이 찾음 ("작업에어호수" → "작업 에어 호수")
+  const qn = q.replace(/\s+/g, '');
+  let where = "p.is_deleted = 0 AND (REPLACE(p.search_text, ' ', '') LIKE ? OR REPLACE(LOWER(p.title), ' ', '') LIKE ?)";
+  let params = [`%${qn}%`, `%${qn}%`];
 
   if (nation) {
     where += ' AND p.nation_code = ?';
