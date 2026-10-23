@@ -5,6 +5,14 @@
 // 바인딩 필요:
 //   DB   → D1 pododa-db
 //   MEDIA → R2 pododa-media
+// 설정값 (Workers → pododa-api → Settings → Variables and Secrets):
+//   JWT_SECRET        로그인 표 서명용 (이미 있음)
+//   GOOGLE_CLIENT_ID  구글 로그인 (pododa 전용 OAuth 클라이언트 ID)
+//   RESEND_API_KEY    이메일 인증 코드 발송 (Secret 으로)
+//   MAIL_FROM         보내는 사람, 예: pododa <login@pododa.kr>
+//   ADMIN_EMAILS      (선택) 크레딧 관리자 이메일, 쉼표로 여러 개. 없으면 hasin7jk@gmail.com
+//   CREDIT_WON        (선택) 유료 크레딧 1개의 환불 금액(원). 없으면 100
+// v25: coverfo 계정·크레딧과 분리 — SUPABASE_URL·SUPABASE_ANON 은 더 이상 쓰지 않음
 // ============================================
 
 export default {
@@ -113,19 +121,51 @@ export default {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
         return cors(await getMyLikes(userId, env));
       }
-      // v20 회원 탈퇴: 환불 계획 미리보기 · 탈퇴 실행
+      // v25 회원 탈퇴 (pododa 계정만): 크레딧 확인 · 탈퇴 실행
       if (path === '/api/me/withdraw-plan' && method === 'POST') {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
-        return cors(await withdrawPlan(userId, request, env));
+        return cors(await withdrawPlan(userId, env));
       }
       if (path === '/api/me/withdraw' && method === 'POST') {
         if (!userId) return cors(json({ error: 'login_required' }, 401));
         return cors(await withdraw(userId, request, env));
       }
 
-      // ===== 인증 콜백 =====
-      if (path === '/api/auth/callback' && method === 'POST') {
-        return cors(await authCallback(request, env));
+      // ===== v25 pododa 전용 로그인 (구글 · 이메일 인증 코드) =====
+      if (path === '/api/auth/config' && method === 'GET') {
+        return cors(authConfig(env));
+      }
+      if (path === '/api/auth/google' && method === 'POST') {
+        return cors(await authGoogle(request, env));
+      }
+      if (path === '/api/auth/email/start' && method === 'POST') {
+        return cors(await authEmailStart(request, env));
+      }
+      if (path === '/api/auth/email/verify' && method === 'POST') {
+        return cors(await authEmailVerify(request, env));
+      }
+      if (path === '/api/auth/refresh' && method === 'POST') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await authRefresh(userId, env));
+      }
+
+      // ===== v25 pododa 크레딧 =====
+      if (path === '/api/credits' && method === 'GET') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await myCredits(userId, env));
+      }
+      if (path === '/api/credits/refund' && method === 'POST') {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        return cors(await refundRequest(userId, request, env));
+      }
+      // 관리자 (ADMIN_EMAILS 에 든 이메일로 로그인했을 때만)
+      if (path.startsWith('/api/admin/')) {
+        if (!userId) return cors(json({ error: 'login_required' }, 401));
+        if (!(await isAdmin(userId, env))) return cors(json({ error: 'forbidden' }, 403));
+        if (path === '/api/admin/credits' && method === 'GET') return cors(await adminCredits(url, env));
+        if (path === '/api/admin/credits/grant' && method === 'POST') return cors(await adminGrant(userId, request, env));
+        const rf = path.match(/^\/api\/admin\/refunds\/(\d+)$/);
+        if (rf && method === 'POST') return cors(await adminRefund(userId, parseInt(rf[1]), request, env));
       }
 
       // ===== 이미지 업로드 =====
@@ -580,40 +620,365 @@ async function updateProfile(userId, request, env) {
 
 
 // ========================================
-// v20 회원 탈퇴 (크레딧 환불 포함)
-//  · scope 'pododa' : pododa 정보만 지움 (coverfo 계정·크레딧은 그대로 — coverfo·포도톡에서 계속 사용)
-//  · scope 'all'    : coverfo 계정까지 탈퇴. coverfo 서버(/api/account-delete)가 남은 충전 크레딧을
-//                     토스 결제 취소로 환불한 뒤 계정을 지운다. 환불이 하나라도 실패하면 아무것도 지우지 않는다.
-//  · 화면은 coverfo 로그인 토큰(sb_token)을 함께 보낸다 — pododa 계정과 같은 사람인지 확인한 뒤에만 coverfo 에 넘김
+// v25 pododa 전용 계정 (coverfo 계정과 분리)
+//  · 구글 로그인: 화면의 구글 단추가 준 ID 토큰을 구글 공개키로 직접 검증 (GOOGLE_CLIENT_ID 필요)
+//  · 이메일 로그인: 6자리 인증 코드를 메일로 보냄 (RESEND_API_KEY · MAIL_FROM 필요)
+//  · 같은 이메일로 이미 가입한 회원이면 그 계정(글·채팅)을 그대로 이어서 씀
+//  · 로그인 표(pd_token)는 지금처럼 pododa 가 직접 만든다 (30일, 쓰는 동안 자동 연장)
 // ========================================
-async function sbUserId(token, env) {
-  if (!token) return '';
-  try {
-    const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: env.SUPABASE_ANON || '' } });
-    if (!r.ok) return '';
-    const u = await r.json();
-    return u && u.id ? String(u.id) : '';
-  } catch { return ''; }
+const ADMIN_DEFAULT = 'hasin7jk@gmail.com';
+const enc = (s) => new TextEncoder().encode(s);
+function b64urlToBytes(s) {
+  s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+}
+function b64urlJson(s) { return JSON.parse(new TextDecoder().decode(b64urlToBytes(s))); }
+async function sha256hex(s) {
+  const d = await crypto.subtle.digest('SHA-256', enc(s));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function normEmail(e) { return String(e || '').trim().toLowerCase(); }
+function validEmail(e) { return /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[a-z]{2,}$/i.test(e); }
+function adminEmails(env) {
+  return String(env.ADMIN_EMAILS || ADMIN_DEFAULT).split(',').map(normEmail).filter(Boolean);
+}
+async function userEmail(userId, env) {
+  const u = await env.DB.prepare('SELECT email FROM pd_users WHERE id = ?').bind(userId).first();
+  return normEmail(u && u.email);
+}
+async function isAdmin(userId, env) {
+  const e = await userEmail(userId, env);
+  return !!e && adminEmails(env).includes(e);
+}
+function creditWon(env) { const n = parseInt(env.CREDIT_WON || '100', 10); return n > 0 ? n : 100; }
+
+let authTablesReady = false;
+async function ensureAuthTables(env) {
+  if (authTablesReady) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS pd_auth_codes (
+    email TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    tries INTEGER NOT NULL DEFAULT 0,
+    sent_at INTEGER NOT NULL)`).run();
+  authTablesReady = true;
 }
 
-async function coverfoAccount(token, body, env) {
-  const base = (env.COVERFO_URL || 'https://coverfo.com').replace(/\/+$/, '');
-  const r = await fetch(`${base}/api/account-delete`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+// GET /api/auth/config — 화면이 어떤 로그인 단추를 보여 줄지
+function authConfig(env) {
+  return json({
+    google_client_id: env.GOOGLE_CLIENT_ID || '',
+    email_login: !!(env.RESEND_API_KEY && env.MAIL_FROM),
+    credit_won: creditWon(env),
   });
-  const j = await r.json().catch(() => ({}));
-  return { status: r.status, j };
 }
 
-async function withdrawPlan(userId, request, env) {
+// 이메일로 기존 회원을 찾거나 새로 만든 뒤 pododa 로그인 표를 준다
+async function loginByEmail(email, profile, data, env) {
+  let user = await env.DB.prepare('SELECT * FROM pd_users WHERE LOWER(email) = ? LIMIT 1').bind(email).first();
+  if (!user) {
+    const id = 'pd_' + crypto.randomUUID();
+    await env.DB.prepare(
+      `INSERT INTO pd_users (id, email, nickname, profile_img, nation_code, lang_code) VALUES (?,?,?,?,?,?)`
+    ).bind(
+      id, email,
+      String(profile.name || email.split('@')[0] || '사용자').replace(/[\u0000-\u001f<>]/g, '').slice(0, 20) || '사용자',
+      /^https:\/\//.test(profile.picture || '') ? profile.picture : '',
+      String(data.nation_code || 'KR').slice(0, 4),
+      String(data.lang_code || 'ko').slice(0, 8)
+    ).run();
+    user = await env.DB.prepare('SELECT * FROM pd_users WHERE id = ?').bind(id).first();
+  }
+  const token = await makeToken(user.id, env);
+  return json({ ok: true, token, user });
+}
+
+// 구글 공개키 (1시간 기억)
+let gKeys = null, gKeysAt = 0;
+async function googleKeys() {
+  if (gKeys && Date.now() - gKeysAt < 3600000) return gKeys;
+  const r = await fetch('https://www.googleapis.com/oauth2/v3/certs');
+  if (!r.ok) throw new Error('google_keys ' + r.status);
+  gKeys = (await r.json()).keys || [];
+  gKeysAt = Date.now();
+  return gKeys;
+}
+async function verifyGoogleIdToken(idToken, clientId) {
+  const parts = String(idToken || '').split('.');
+  if (parts.length !== 3) return null;
+  const header = b64urlJson(parts[0]);
+  const p = b64urlJson(parts[1]);
+  let jwk = (await googleKeys()).find((k) => k.kid === header.kid);
+  if (!jwk) { gKeys = null; jwk = (await googleKeys()).find((k) => k.kid === header.kid); }
+  if (!jwk || header.alg !== 'RS256') return null;
+  const key = await crypto.subtle.importKey('jwk', { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: 'RS256', ext: true },
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+  const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(parts[2]), enc(parts[0] + '.' + parts[1]));
+  if (!ok) return null;
+  if (p.iss !== 'accounts.google.com' && p.iss !== 'https://accounts.google.com') return null;
+  if (p.aud !== clientId) return null;
+  if (!p.exp || p.exp * 1000 < Date.now()) return null;
+  if (!p.email || !(p.email_verified === true || p.email_verified === 'true')) return null;
+  return p;
+}
+
+// POST /api/auth/google { credential }
+async function authGoogle(request, env) {
+  if (!env.GOOGLE_CLIENT_ID) return json({ error: 'google_off', message: '구글 로그인이 아직 설정되지 않았어요' }, 503);
   const data = await request.json().catch(() => ({}));
-  const token = String(data.sb_token || '');
-  if ((await sbUserId(token, env)) !== String(userId)) return json({ error: 'relogin', message: '보안을 위해 다시 로그인해 주세요' }, 401);
-  const { status, j } = await coverfoAccount(token, { op: 'plan' }, env);
-  if (status !== 200) return json({ error: 'plan_failed', message: j.error || j.message || ('coverfo ' + status) }, 502);
-  return json({ ok: true, plan: j.data || j });
+  const p = await verifyGoogleIdToken(data.credential, env.GOOGLE_CLIENT_ID);
+  if (!p) return json({ error: 'invalid_google', message: '구글 로그인 확인에 실패했어요. 다시 시도해 주세요' }, 401);
+  return loginByEmail(normEmail(p.email), { name: p.name, picture: p.picture }, data, env);
+}
+
+// POST /api/auth/email/start { email } — 인증 코드 메일 보내기
+async function authEmailStart(request, env) {
+  if (!env.RESEND_API_KEY || !env.MAIL_FROM) return json({ error: 'email_off', message: '이메일 로그인이 아직 설정되지 않았어요' }, 503);
+  const data = await request.json().catch(() => ({}));
+  const email = normEmail(data.email);
+  if (!validEmail(email)) return json({ error: 'bad_email', message: '이메일 주소를 확인해 주세요' }, 400);
+  await ensureAuthTables(env);
+  const now = Date.now();
+  const prev = await env.DB.prepare('SELECT sent_at FROM pd_auth_codes WHERE email = ?').bind(email).first();
+  if (prev && now - prev.sent_at < 60000) return json({ error: 'too_soon', message: '1분 뒤에 다시 받을 수 있어요' }, 429);
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+  const hash = await sha256hex(email + ':' + code + ':' + (env.JWT_SECRET || ''));
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: env.MAIL_FROM,
+      to: [email],
+      subject: `pododa 로그인 코드 ${code}`,
+      text: `pododa 로그인 코드: ${code}\n\n10분 안에 pododa 로그인 화면에 입력해 주세요.\n직접 요청하지 않았다면 이 메일은 무시하셔도 됩니다.`,
+      html: `<div style="font-family:sans-serif;max-width:420px;margin:auto;padding:24px"><div style="font-size:24px;font-weight:800;color:#7C3AED">pododa</div><p>로그인 코드예요. 10분 안에 입력해 주세요.</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:14px 0">${code}</div><p style="color:#888;font-size:13px">직접 요청하지 않았다면 이 메일은 무시하셔도 됩니다.</p></div>`,
+    }),
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => '');
+    return json({ error: 'send_failed', message: '메일을 보내지 못했어요 (' + r.status + ') ' + t.slice(0, 120) }, 502);
+  }
+  await env.DB.prepare(
+    `INSERT INTO pd_auth_codes (email, code_hash, expires_at, tries, sent_at) VALUES (?,?,?,0,?)
+     ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, tries = 0, sent_at = excluded.sent_at`
+  ).bind(email, hash, now + 10 * 60000, now).run();
+  return json({ ok: true });
+}
+
+// POST /api/auth/email/verify { email, code }
+async function authEmailVerify(request, env) {
+  const data = await request.json().catch(() => ({}));
+  const email = normEmail(data.email);
+  const code = String(data.code || '').replace(/\D/g, '');
+  if (!validEmail(email) || code.length !== 6) return json({ error: 'bad_code', message: '6자리 코드를 확인해 주세요' }, 400);
+  await ensureAuthTables(env);
+  const row = await env.DB.prepare('SELECT * FROM pd_auth_codes WHERE email = ?').bind(email).first();
+  if (!row || row.expires_at < Date.now()) return json({ error: 'expired', message: '코드가 만료됐어요. 다시 받아 주세요' }, 400);
+  if (row.tries >= 5) return json({ error: 'too_many', message: '5번 틀렸어요. 코드를 다시 받아 주세요' }, 429);
+  const hash = await sha256hex(email + ':' + code + ':' + (env.JWT_SECRET || ''));
+  if (hash !== row.code_hash) {
+    await env.DB.prepare('UPDATE pd_auth_codes SET tries = tries + 1 WHERE email = ?').bind(email).run();
+    return json({ error: 'wrong_code', message: '코드가 맞지 않아요 (' + (4 - row.tries) + '번 남음)' }, 400);
+  }
+  await env.DB.prepare('DELETE FROM pd_auth_codes WHERE email = ?').bind(email).run();
+  return loginByEmail(email, {}, data, env);
+}
+
+// POST /api/auth/refresh — 로그인 표 연장 (쓰는 동안 로그아웃되지 않게)
+async function authRefresh(userId, env) {
+  const user = await env.DB.prepare('SELECT * FROM pd_users WHERE id = ?').bind(userId).first();
+  if (!user) return json({ error: 'no_user' }, 401);
+  return json({ ok: true, token: await makeToken(userId, env), user });
+}
+
+
+// ========================================
+// v25 pododa 크레딧 (coverfo·포도톡 크레딧과 별개)
+//  · free(무료: 이벤트·지급분, 환불 없음) · paid(유료: 대가를 받고 지급한 분, 환불 신청 가능)
+//  · 지금은 관리자 지급만 (결제 연결은 나중에)
+//  · 환불: 회원이 계좌를 적어 신청 → 유료 잔액이 '환불 대기'로 빠짐 → 관리자가 송금 후 '완료' (반려하면 되돌림)
+// ========================================
+let creditTablesReady = false;
+async function ensureCreditTables(env) {
+  if (creditTablesReady) return;
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS pd_credit_wallet (
+      user_id TEXT PRIMARY KEY,
+      free REAL NOT NULL DEFAULT 0,
+      paid REAL NOT NULL DEFAULT 0,
+      updated_at TEXT)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS pd_credit_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      free_delta REAL NOT NULL DEFAULT 0,
+      paid_delta REAL NOT NULL DEFAULT 0,
+      free_after REAL NOT NULL DEFAULT 0,
+      paid_after REAL NOT NULL DEFAULT 0,
+      memo TEXT DEFAULT '',
+      by_admin TEXT DEFAULT '',
+      created_at TEXT NOT NULL)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS pd_credit_ledger_user ON pd_credit_ledger (user_id, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS pd_credit_refunds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      email TEXT DEFAULT '',
+      credits REAL NOT NULL,
+      won INTEGER NOT NULL,
+      bank TEXT DEFAULT '',
+      account_no TEXT DEFAULT '',
+      holder TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'requested',
+      reason TEXT DEFAULT '',
+      admin_memo TEXT DEFAULT '',
+      created_at TEXT NOT NULL,
+      done_at TEXT)`),
+  ]);
+  creditTablesReady = true;
+}
+
+async function getWallet(userId, env) {
+  await ensureCreditTables(env);
+  const w = await env.DB.prepare('SELECT free, paid FROM pd_credit_wallet WHERE user_id = ?').bind(userId).first();
+  return { free: w ? Number(w.free) : 0, paid: w ? Number(w.paid) : 0 };
+}
+
+// 잔액 바꾸기 + 내역 남기기. 잔액이 0 아래로 내려가면 바꾸지 않고 false
+async function changeCredits(env, userId, freeDelta, paidDelta, kind, memo, byAdmin) {
+  await ensureCreditTables(env);
+  freeDelta = Math.round(Number(freeDelta || 0) * 10) / 10;
+  paidDelta = Math.round(Number(paidDelta || 0) * 10) / 10;
+  await env.DB.prepare(`INSERT OR IGNORE INTO pd_credit_wallet (user_id, free, paid, updated_at) VALUES (?, 0, 0, datetime('now'))`).bind(userId).run();
+  const r = await env.DB.prepare(
+    `UPDATE pd_credit_wallet SET free = free + ?, paid = paid + ?, updated_at = datetime('now')
+     WHERE user_id = ? AND free + ? >= 0 AND paid + ? >= 0`
+  ).bind(freeDelta, paidDelta, userId, freeDelta, paidDelta).run();
+  if (!r.meta || !r.meta.changes) return false;
+  await env.DB.prepare(
+    `INSERT INTO pd_credit_ledger (user_id, kind, free_delta, paid_delta, free_after, paid_after, memo, by_admin, created_at)
+     SELECT ?, ?, ?, ?, free, paid, ?, ?, datetime('now') FROM pd_credit_wallet WHERE user_id = ?`
+  ).bind(userId, kind, freeDelta, paidDelta, String(memo || '').slice(0, 200), byAdmin || '', userId).run();
+  return true;
+}
+
+// GET /api/credits — 내 크레딧 · 내역 · 환불 신청
+async function myCredits(userId, env) {
+  const w = await getWallet(userId, env);
+  const { results: history } = await env.DB.prepare(
+    'SELECT kind, free_delta, paid_delta, free_after, paid_after, memo, created_at FROM pd_credit_ledger WHERE user_id = ? ORDER BY id DESC LIMIT 50'
+  ).bind(userId).all();
+  const { results: refunds } = await env.DB.prepare(
+    `SELECT id, credits, won, bank, holder, status, admin_memo, created_at, done_at FROM pd_credit_refunds WHERE user_id = ? ORDER BY id DESC LIMIT 10`
+  ).bind(userId).all();
+  return json({ ok: true, free: w.free, paid: w.paid, total: Math.round((w.free + w.paid) * 10) / 10,
+    credit_won: creditWon(env), history: history || [], refunds: refunds || [], is_admin: await isAdmin(userId, env) });
+}
+
+function readAccount(a) {
+  a = a || {};
+  const acc = {
+    bank: String(a.bank || '').trim().slice(0, 30),
+    account_no: String(a.account_no || a.accountNumber || '').replace(/[^\d-]/g, '').slice(0, 30),
+    holder: String(a.holder || a.holderName || '').trim().slice(0, 30),
+  };
+  return acc.bank && acc.account_no.replace(/\D/g, '').length >= 6 && acc.holder ? acc : null;
+}
+
+// 남은 유료 크레딧 전부를 환불 신청으로 돌림 (잔액에서 빠지고 '환불 대기')
+async function requestRefund(userId, account, reason, env) {
+  const w = await getWallet(userId, env);
+  if (!(w.paid > 0)) return { error: 'no_paid', message: '환불할 유료 크레딧이 없어요' };
+  if (reason !== 'withdraw') {
+    const pending = await env.DB.prepare(`SELECT id FROM pd_credit_refunds WHERE user_id = ? AND status = 'requested' LIMIT 1`).bind(userId).first();
+    if (pending) return { error: 'pending', message: '이미 처리 중인 환불 신청이 있어요' };
+  }
+  const ok = await changeCredits(env, userId, 0, -w.paid, 'refund_request', '환불 신청', '');
+  if (!ok) return { error: 'changed', message: '잔액이 바뀌었어요. 다시 시도해 주세요' };
+  const won = Math.round(w.paid * creditWon(env));
+  const r = await env.DB.prepare(
+    `INSERT INTO pd_credit_refunds (user_id, email, credits, won, bank, account_no, holder, status, reason, created_at)
+     VALUES (?,?,?,?,?,?,?, 'requested', ?, datetime('now'))`
+  ).bind(userId, await userEmail(userId, env), w.paid, won, account.bank, account.account_no, account.holder, reason || '').run();
+  return { ok: true, id: r.meta && r.meta.last_row_id, credits: w.paid, won };
+}
+
+// POST /api/credits/refund { account:{bank, account_no, holder} }
+async function refundRequest(userId, request, env) {
+  const data = await request.json().catch(() => ({}));
+  const account = readAccount(data.account);
+  if (!account) return json({ error: 'account', message: '은행, 계좌번호, 예금주를 모두 적어 주세요' }, 400);
+  const r = await requestRefund(userId, account, 'request', env);
+  return json(r, r.ok ? 200 : 400);
+}
+
+// ----- 관리자 -----
+// GET /api/admin/credits?q=이메일 — 회원 찾기 + 잔액 + 내역, 그리고 환불 신청 목록
+async function adminCredits(url, env) {
+  await ensureCreditTables(env);
+  const q = normEmail(url.searchParams.get('q'));
+  let found = null;
+  if (q) {
+    const u = await env.DB.prepare('SELECT id, email, nickname FROM pd_users WHERE LOWER(email) = ? LIMIT 1').bind(q).first();
+    if (u) {
+      const w = await getWallet(u.id, env);
+      const { results } = await env.DB.prepare(
+        'SELECT kind, free_delta, paid_delta, free_after, paid_after, memo, by_admin, created_at FROM pd_credit_ledger WHERE user_id = ? ORDER BY id DESC LIMIT 30'
+      ).bind(u.id).all();
+      found = { user: u, free: w.free, paid: w.paid, history: results || [] };
+    }
+  }
+  const { results: refunds } = await env.DB.prepare(
+    `SELECT * FROM pd_credit_refunds ORDER BY CASE status WHEN 'requested' THEN 0 ELSE 1 END, id DESC LIMIT 30`
+  ).all();
+  return json({ ok: true, q, found, refunds: refunds || [], credit_won: creditWon(env) });
+}
+
+// POST /api/admin/credits/grant { email, kind:'free'|'paid', amount, memo } — amount 가 음수면 차감
+async function adminGrant(adminId, request, env) {
+  const data = await request.json().catch(() => ({}));
+  const email = normEmail(data.email);
+  const amount = Math.round(Number(data.amount) * 10) / 10;
+  const kind = data.kind === 'paid' ? 'paid' : 'free';
+  if (!isFinite(amount) || amount === 0 || Math.abs(amount) > 1000000) return json({ error: 'amount', message: '수량을 확인해 주세요' }, 400);
+  const u = await env.DB.prepare('SELECT id FROM pd_users WHERE LOWER(email) = ? LIMIT 1').bind(email).first();
+  if (!u) return json({ error: 'no_user', message: '그 이메일로 가입한 회원이 없어요' }, 404);
+  const ok = await changeCredits(env, u.id, kind === 'free' ? amount : 0, kind === 'paid' ? amount : 0,
+    amount > 0 ? 'grant_' + kind : 'deduct_' + kind, data.memo || '', await userEmail(adminId, env));
+  if (!ok) return json({ error: 'balance', message: '잔액보다 많이 뺄 수 없어요' }, 400);
+  return json({ ok: true, ...(await getWallet(u.id, env)) });
+}
+
+// POST /api/admin/refunds/:id { action:'done'|'reject', memo }
+async function adminRefund(adminId, id, request, env) {
+  await ensureCreditTables(env);
+  const data = await request.json().catch(() => ({}));
+  const r = await env.DB.prepare('SELECT * FROM pd_credit_refunds WHERE id = ?').bind(id).first();
+  if (!r) return json({ error: 'not_found' }, 404);
+  if (r.status !== 'requested') return json({ error: 'done_already', message: '이미 처리한 신청이에요' }, 400);
+  const memo = String(data.memo || '').slice(0, 200);
+  if (data.action === 'reject') {
+    const exists = await env.DB.prepare('SELECT id FROM pd_users WHERE id = ?').bind(r.user_id).first();
+    if (exists) await changeCredits(env, r.user_id, 0, r.credits, 'refund_reject', '환불 반려' + (memo ? ' · ' + memo : ''), await userEmail(adminId, env));
+    await env.DB.prepare(`UPDATE pd_credit_refunds SET status = 'rejected', admin_memo = ?, done_at = datetime('now') WHERE id = ?`).bind(memo, id).run();
+  } else if (data.action === 'done') {
+    // 송금을 마쳤으면 계좌번호는 뒷자리 4개만 남김
+    const masked = '****' + String(r.account_no || '').replace(/\D/g, '').slice(-4);
+    await env.DB.prepare(`UPDATE pd_credit_refunds SET status = 'done', admin_memo = ?, account_no = ?, done_at = datetime('now') WHERE id = ?`).bind(memo, masked, id).run();
+  } else return json({ error: 'action' }, 400);
+  return json({ ok: true });
+}
+
+
+// ========================================
+// v25 회원 탈퇴 (pododa 계정만 — coverfo 와 상관없음)
+//  · 무료 크레딧은 없어지고, 남은 유료 크레딧은 적어 준 계좌로 환불 신청이 함께 접수된다
+// ========================================
+// POST /api/me/withdraw-plan
+async function withdrawPlan(userId, env) {
+  const w = await getWallet(userId, env);
+  const pending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM pd_credit_refunds WHERE user_id = ? AND status = 'requested'`).bind(userId).first();
+  return json({ ok: true, plan: { free: w.free, paid: w.paid, won: Math.round(w.paid * creditWon(env)), credit_won: creditWon(env), pending: (pending && pending.n) || 0 } });
 }
 
 async function deletePrefix(env, prefix) {
@@ -627,6 +992,7 @@ async function deletePrefix(env, prefix) {
 
 async function deletePododaData(userId, env) {
   const u = String(userId);
+  const email = await userEmail(u, env);
   const run = async (sql, ...b) => { try { await env.DB.prepare(sql).bind(...b).run(); } catch (e) { /* 없는 표는 건너뜀 */ } };
   try { await deletePrefix(env, `posts/${u}/`); } catch (e) {}
   try { await deletePrefix(env, `uploads/${u}/`); } catch (e) {}
@@ -637,74 +1003,28 @@ async function deletePododaData(userId, env) {
   await run('DELETE FROM pd_chat_rooms WHERE user1 = ? OR user2 = ?', u, u);
   await run('DELETE FROM pd_posts WHERE user_id = ?', u);
   await run('DELETE FROM pd_location_log WHERE user_id = ?', u);
-  /* 신고 기록은 개인정보 처리방침에 따라 처리 완료 후 1년 보관 */
+  await run('DELETE FROM pd_credit_ledger WHERE user_id = ?', u);
+  await run('DELETE FROM pd_credit_wallet WHERE user_id = ?', u);
+  if (email) await run('DELETE FROM pd_auth_codes WHERE email = ?', email);
+  /* 신고 기록은 처리 완료 후 1년, 환불 신청 기록은 처리를 위해 개인정보 처리방침의 기간 동안 보관 */
   await env.DB.prepare('DELETE FROM pd_users WHERE id = ?').bind(u).run();
 }
 
+// POST /api/me/withdraw { confirm:'탈퇴', account? }
 async function withdraw(userId, request, env) {
   const data = await request.json().catch(() => ({}));
   if (String(data.confirm || '') !== '탈퇴') return json({ error: 'confirm', message: '확인 문구 "탈퇴" 를 적어 주세요' }, 400);
-  const scope = data.scope === 'all' ? 'all' : 'pododa';
+  const w = await getWallet(userId, env);
   let refund = null;
-  if (scope === 'all') {
-    const token = String(data.sb_token || '');
-    if ((await sbUserId(token, env)) !== String(userId)) return json({ error: 'relogin', message: '보안을 위해 다시 로그인해 주세요' }, 401);
-    const { status, j } = await coverfoAccount(token, { op: 'delete', confirm: '탈퇴', refund: data.refund !== false, account: data.account || undefined }, env);
-    const d = j.data || j;
-    if (status !== 200 || !d || d.ok === false) {
-      /* 환불 실패 등 — pododa 정보도 지우지 않고 멈춘다 */
-      return json({ error: 'coverfo_failed', message: (d && d.error) || j.error || ('coverfo ' + status), refund: d && d.refund }, 502);
-    }
-    refund = d.refund || null;
+  if (w.paid > 0) {
+    const account = readAccount(data.account);
+    if (!account) return json({ error: 'account', message: '남은 유료 크레딧을 돌려받을 계좌를 모두 적어 주세요' }, 400);
+    const r = await requestRefund(userId, account, 'withdraw', env);
+    if (!r.ok) return json(r, 400);
+    refund = { credits: r.credits, won: r.won };
   }
   await deletePododaData(userId, env);
-  return json({ ok: true, scope, refund });
-}
-
-
-// ========================================
-// 인증 (Auth - coverfo Supabase 연동)
-// ========================================
-
-async function authCallback(request, env) {
-  const data = await request.json();
-  const supabaseToken = data.access_token;
-  if (!supabaseToken) return json({ error: 'token required' }, 400);
-
-  // coverfo Supabase에서 사용자 정보 가져오기
-  // SUPABASE_URL 은 env에서 설정
-  const supabaseUrl = env.SUPABASE_URL || 'https://your-project.supabase.co';
-  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: { 'Authorization': `Bearer ${supabaseToken}`, 'apikey': env.SUPABASE_ANON || '' }
-  });
-
-  if (!res.ok) return json({ error: 'invalid token' }, 401);
-  const supaUser = await res.json();
-
-  // pd_users에 upsert
-  const existing = await env.DB.prepare('SELECT * FROM pd_users WHERE id = ?')
-    .bind(supaUser.id).first();
-
-  if (!existing) {
-    await env.DB.prepare(
-      `INSERT INTO pd_users (id, email, nickname, profile_img, nation_code, lang_code)
-       VALUES (?,?,?,?,?,?)`
-    ).bind(
-      supaUser.id,
-      supaUser.email || '',
-      supaUser.user_metadata?.nickname || supaUser.email?.split('@')[0] || '사용자',
-      supaUser.user_metadata?.avatar_url || '',
-      data.nation_code || 'KR',
-      data.lang_code || 'ko'
-    ).run();
-  }
-
-  // 자체 JWT 생성 (간단한 방식)
-  const token = await makeToken(supaUser.id, env);
-  const user = existing || await env.DB.prepare('SELECT * FROM pd_users WHERE id = ?')
-    .bind(supaUser.id).first();
-
-  return json({ ok: true, token, user });
+  return json({ ok: true, refund });
 }
 
 

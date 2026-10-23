@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="/manifest.json">
 <title>pododa</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--pri:#7C3AED;--pri2:#6D28D9;--bg:#f5f5f5;--white:#fff;--gray:#888;--lgray:#e5e5e5;--dgray:#333;--red:#ef4444;--green:#22c55e;--orange:#f59e0b;--radius:12px}
@@ -262,7 +261,7 @@ a{text-decoration:none;color:inherit}
     <div id="myGuest" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 24px">
       <div style="font-size:48px">👤</div>
       <p style="font-size:16px;font-weight:600;color:#333">로그인이 필요합니다</p>
-      <p style="font-size:13px;color:#999;text-align:center">coverfo 계정으로 로그인하면<br>글쓰기, 채팅, 찜 등을 이용할 수 있어요</p>
+      <p style="font-size:13px;color:#999;text-align:center">구글 계정이나 이메일로 로그인하면<br>글쓰기, 채팅, 찜 등을 이용할 수 있어요</p>
       <button onclick="document.getElementById('loginPage').classList.add('show')" style="width:100%;max-width:280px;padding:14px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer">로그인 / 회원가입</button>
       <button onclick="showNationModal()" style="width:100%;max-width:280px;padding:12px;background:#fff;color:#333;border:1px solid var(--lgray);border-radius:10px;font-size:14px;cursor:pointer">🌍 국가 설정 <span class="nation-label" style="color:var(--pri);font-weight:600"></span></button>
       <div style="display:flex;gap:14px;margin-top:8px;font-size:13px;flex-wrap:wrap;justify-content:center">
@@ -291,6 +290,8 @@ a{text-decoration:none;color:inherit}
         <div class="menu-item" onclick="showMyPosts()"><span class="mi-icon">📝</span>내 게시글</div>
         <div class="menu-item" onclick="showMyLikes()"><span class="mi-icon">❤️</span>찜 목록</div>
         <div class="menu-item" onclick="openChatList()"><span class="mi-icon">💬</span>채팅</div>
+        <div class="menu-item" onclick="openCredits()"><span class="mi-icon">💜</span>내 크레딧 <span id="myCreditBadge" style="margin-left:auto;color:var(--pri);font-weight:700"></span></div>
+        <div class="menu-item" id="adminCreditMenu" onclick="openAdminCredits()" style="display:none"><span class="mi-icon">🛠️</span>크레딧 관리 <span style="margin-left:auto;font-size:11.5px;color:#999">관리자</span></div>
         <div class="menu-item" onclick="showNationModal()"><span class="mi-icon">🌍</span>국가 설정 <span class="nation-label" style="margin-left:auto;color:var(--pri);font-weight:600"></span></div>
         <div class="menu-item" onclick="showLangModal()"><span class="mi-icon">🌐</span>언어 설정</div>
         <div class="menu-item" onclick="clearMyLocation()"><span class="mi-icon">📍</span>위치 정보 삭제 (동의 철회)</div>
@@ -564,17 +565,19 @@ a{text-decoration:none;color:inherit}
     <span class="dtitle">📄 pododa 이용약관</span>
   </div>
   <div class="lbs-body">
-<div class="dc-date">시행일 2026년 10월 22일</div>
+<div class="dc-date">시행일 2026년 10월 23일</div>
 <h3>제1조 (목적)</h3><p>이 약관은 커버포(coverfo, 이하 “회사”)가 운영하는 pododa.kr(이하 “서비스”)의 이용 조건과 절차, 회사와 이용자의 권리·의무와 책임을 정합니다.</p>
 <h3>제2조 (정의)</h3><ul>
 <li>“이용자”란 서비스에 접속해 이 약관에 따라 서비스를 이용하는 사람을 말합니다.</li>
-<li>“회원”이란 coverfo 계정으로 로그인한 이용자를 말합니다.</li>
+<li>“회원”이란 구글 계정 또는 이메일 인증으로 pododa 계정을 만들어 로그인한 이용자를 말합니다.</li>
+<li>“크레딧”이란 서비스 안에서만 쓰는 이용 단위로, 회사가 무상으로 지급한 “무료 크레딧”과 회원이 대가를 내고 받은 “유료 크레딧”이 있습니다.</li>
 <li>“게시물”이란 회원이 서비스에 올린 글·사진·가격·주소·연락처·채팅 메시지 등 모든 정보를 말합니다.</li></ul>
 <h3>제3조 (약관의 효력과 변경)</h3><ul>
 <li>이 약관은 서비스 화면(MY → 이용약관)에 게시하여 효력이 생깁니다.</li>
 <li>회사는 관계 법령을 어기지 않는 범위에서 약관을 바꿀 수 있으며, 바뀐 약관은 시행 7일 전부터(이용자에게 불리한 변경은 30일 전부터) 서비스 안에 알립니다. 바뀐 약관에 동의하지 않는 회원은 이용을 멈추고 탈퇴할 수 있습니다.</li></ul>
 <h3>제4조 (회원 가입과 계정)</h3><ul>
-<li>회원 가입과 로그인은 coverfo 계정(구글·이메일 등)으로 합니다. 처음 로그인하면 pododa 회원으로 등록됩니다.</li>
+<li>회원 가입과 로그인은 구글 계정 또는 이메일 인증 코드로 합니다. 처음 로그인하면 pododa 회원으로 등록됩니다.</li>
+<li>pododa 계정과 크레딧은 회사가 운영하는 다른 서비스(coverfo, 포도톡 등)의 계정·크레딧과 별개이며, 서로 옮기거나 함께 쓸 수 없습니다.</li>
 <li>만 14세 미만은 회원으로 가입할 수 없습니다.</li>
 <li>회원은 자기 계정을 다른 사람에게 빌려주거나 넘길 수 없으며, 계정 관리 소홀로 생긴 손해는 회원이 책임집니다.</li></ul>
 <h3>제5조 (서비스 내용)</h3><ul>
@@ -582,6 +585,11 @@ a{text-decoration:none;color:inherit}
 <li>찜, 가격 제안, 회원 사이 채팅, 알림, 신고</li>
 <li>위치 기반 거리 검색(위치기반서비스 이용약관에 따름)</li>
 <li>서비스는 무료입니다. 유료 기능을 새로 만들면 요금과 조건을 미리 알리고 따로 동의를 받습니다.</li></ul>
+<h3>제5조의2 (크레딧)</h3><ul>
+<li>크레딧은 pododa 안에서만 쓸 수 있고, 현금이나 다른 서비스의 크레딧으로 바꿀 수 없습니다. 크레딧 잔액과 이용 내역은 MY → ‘내 크레딧’에서 확인합니다.</li>
+<li>무료 크레딧은 이벤트 등으로 회사가 무상 지급한 것으로 환불되지 않으며, 탈퇴하면 없어집니다.</li>
+<li>남은 유료 크레딧은 MY → ‘내 크레딧’에서 환불을 신청할 수 있습니다. 회사는 신청 내용을 확인한 뒤 화면에 표시한 기준 금액으로 회원이 적은 계좌에 지체 없이 보냅니다. 탈퇴할 때 남은 유료 크레딧도 같은 방법으로 환불합니다.</li>
+<li>크레딧 충전(결제) 기능은 준비 중이며, 시작할 때 가격과 조건을 미리 알립니다.</li></ul>
 <h3>제6조 (회원 사이 거래)</h3><ul>
 <li>회사는 회원이 직접 글을 올리고 서로 연락할 수 있는 공간을 제공할 뿐, 회원 사이 거래의 당사자가 아닙니다. 회사는 결제를 대행하거나 대금을 받지 않습니다.</li>
 <li>상품·서비스의 정보, 품질, 거래 조건, 대금 지급, 배송, 환불 등 거래에 관한 책임은 거래하는 회원에게 있습니다.</li>
@@ -598,7 +606,7 @@ a{text-decoration:none;color:inherit}
 <li>회사는 게시물이 법령이나 이 약관을 어기거나 다른 사람의 권리를 침해한다고 판단되면 알리지 않고 숨기거나 삭제할 수 있습니다. 권리를 침해당한 사람은 신고 기능이나 아래 연락처로 삭제를 요청할 수 있습니다.</li></ul>
 <h3>제9조 (이용 제한)</h3><p>회사는 회원이 제7조를 어기면 경고, 게시물 삭제, 일정 기간 이용 정지, 영구 이용 정지 등의 조치를 할 수 있습니다. 회원은 조치에 대해 아래 연락처로 이의를 신청할 수 있습니다.</p>
 <h3>제10조 (서비스의 변경·중단)</h3><p>회사는 운영상·기술상 필요에 따라 서비스의 전부 또는 일부를 바꾸거나 중단할 수 있으며, 미리 서비스 안에 알립니다. 천재지변, 설비 장애, 외부 클라우드 사업자의 장애 등 부득이한 경우에는 사후에 알릴 수 있습니다.</p>
-<h3>제11조 (탈퇴)</h3><p>회원은 언제든 MY → ‘회원 탈퇴’에서 바로 탈퇴하거나 아래 연락처로 요청할 수 있으며, 회사는 지체 없이 처리합니다. ‘coverfo 계정까지 모두 탈퇴’를 고르면 coverfo 이용약관의 환불 기준에 따라 남은 충전 크레딧을 결제 취소로 돌려드린 뒤 계정을 지웁니다. 탈퇴하면 회원 정보와 게시물은 개인정보 처리방침에 따라 파기합니다(다른 회원과 주고받은 채팅의 상대방 쪽 기록은 남을 수 있습니다).</p>
+<h3>제11조 (탈퇴)</h3><p>회원은 언제든 MY → ‘회원 탈퇴’에서 바로 탈퇴하거나 아래 연락처로 요청할 수 있으며, 회사는 지체 없이 처리합니다. 탈퇴하면 pododa 계정만 지워지며 다른 서비스(coverfo, 포도톡 등)에는 영향이 없습니다. 남은 유료 크레딧은 제5조의2에 따라 환불하고, 무료 크레딧은 없어집니다. 탈퇴하면 회원 정보와 게시물은 개인정보 처리방침에 따라 파기합니다(다른 회원과 주고받은 채팅의 상대방 쪽 기록은 남을 수 있습니다).</p>
 <h3>제12조 (책임의 한계)</h3><ul>
 <li>회사는 회원 사이 거래와 게시물의 내용, 회원이 서비스 밖에서 한 행위에 대하여 책임지지 않습니다. 다만 회사의 고의 또는 중대한 과실로 생긴 손해는 그렇지 않습니다.</li>
 <li>회사는 천재지변 등 회사가 통제할 수 없는 사유로 서비스를 제공하지 못한 경우 책임지지 않습니다.</li></ul>
@@ -611,7 +619,7 @@ a{text-decoration:none;color:inherit}
 <tr><th>주소</th><td>서울특별시 송파구 오금로 527, 3층 C-6호 (거여동, 성암빌딩)</td></tr>
 <tr><th>전화 · 이메일</th><td>010-6540-7338 · hasin7jk@gmail.com</td></tr>
 <tr><th>호스팅 서비스</th><td>Cloudflare, Inc.</td></tr></table>
-<h3>부칙</h3><p>이 약관은 2026년 10월 22일부터 시행합니다.</p>
+<h3>부칙</h3><p>이 약관은 2026년 10월 23일부터 시행합니다. (2026년 10월 23일 개정: pododa 전용 계정·크레딧 도입)</p>
   </div>
 </div>
 
@@ -622,24 +630,30 @@ a{text-decoration:none;color:inherit}
     <span class="dtitle">🔒 개인정보 처리방침</span>
   </div>
   <div class="lbs-body">
-<div class="dc-date">시행일 2026년 10월 22일</div>
+<div class="dc-date">시행일 2026년 10월 23일</div>
 <p>커버포(coverfo, 이하 “회사”)는 pododa.kr 이용자의 개인정보를 개인정보 보호법 등 관계 법령에 따라 다음과 같이 처리합니다. 위치정보는 이 방침과 함께 <span onclick="document.getElementById('lbsTermsPage').style.zIndex=270;openLbsTerms()" style="color:var(--pri);cursor:pointer;text-decoration:underline">위치기반서비스 이용약관</span>을 따릅니다.</p>
 <h3>1. 처리하는 개인정보와 목적</h3><table>
 <tr><th>정보</th><th>목적</th><th>수집 시점</th></tr>
-<tr><td>계정 식별값, 이메일, 닉네임, 프로필 사진 (coverfo 계정에서 받음)</td><td>회원 식별, 로그인 유지, 글·채팅·찜 이용</td><td>처음 로그인할 때</td></tr>
+<tr><td>계정 식별값, 이메일, 닉네임, 프로필 사진 (구글 로그인 시 구글에서 받음 · 이메일 로그인 시 직접 입력)</td><td>회원 식별, 로그인 유지, 글·채팅·찜 이용</td><td>처음 로그인할 때</td></tr>
+<tr><td>로그인 인증 코드 (암호화해 저장)</td><td>이메일 로그인 본인 확인</td><td>이메일 로그인을 요청할 때</td></tr>
+<tr><td>크레딧 잔액과 이용 내역</td><td>크레딧 제공, 환불</td><td>크레딧을 받거나 쓸 때</td></tr>
+<tr><td>환불 신청 정보: 은행, 계좌번호, 예금주, 금액</td><td>유료 크레딧 환불 송금</td><td>환불을 신청하거나 유료 크레딧이 남은 채 탈퇴할 때</td></tr>
 <tr><td>회원이 올린 글: 제목, 내용, 가격, 통화, 사진, 주소, 전화번호, 영업시간, 최소 주문 수량, 회사 정보</td><td>글 게시와 검색 (다른 이용자에게 공개됩니다)</td><td>글을 올릴 때</td></tr>
 <tr><td>글 위치 (약 1km 단위로 줄여 저장)</td><td>글까지의 거리 표시 (다른 이용자에게는 좌표가 아닌 거리만 보여 줍니다)</td><td>글 등록 화면에서 ‘현재 위치’를 직접 누를 때만</td></tr>
 <tr><td>채팅 메시지, 가격 제안, 찜, 알림</td><td>회원 사이 연락과 거래 협의</td><td>이용할 때</td></tr>
 <tr><td>신고 내용 (신고자, 대상, 사유)</td><td>부정 이용 방지, 게시물 조치</td><td>신고할 때</td></tr>
 <tr><td>위치정보 이용·제공사실 확인자료 (계정 식별값 또는 기기의 무작위 식별값, 취득 경로, 기기 종류, 이용 서비스, 이용 일시)</td><td>위치정보법에 따른 기록·보존</td><td>거리 검색을 이용할 때 자동으로</td></tr>
 <tr><td>접속 기록 (IP 주소, 브라우저 정보, 접속 일시)</td><td>보안, 부정 이용 방지, 장애 대응</td><td>접속할 때 자동으로</td></tr>
-</table><p>거리 검색에 쓰는 현재 위치(위도·경도)는 검색 요청을 처리하는 데만 쓰고 서버에 저장하지 않습니다. 회사는 주민등록번호, 카드번호 등 민감한 정보를 받지 않으며, 결제를 처리하지 않습니다.</p>
+</table><p>거리 검색에 쓰는 현재 위치(위도·경도)는 검색 요청을 처리하는 데만 쓰고 서버에 저장하지 않습니다. 회사는 주민등록번호, 카드번호 등 민감한 정보를 받지 않으며, 지금은 결제를 처리하지 않습니다.</p>
 <h3>2. 보유 기간과 파기</h3><table>
 <tr><th>정보</th><th>보유 기간</th></tr>
 <tr><td>회원 정보</td><td>탈퇴할 때까지 (탈퇴 요청 시 지체 없이 파기)</td></tr>
 <tr><td>글·사진·글 위치</td><td>회원이 삭제하거나 탈퇴할 때까지</td></tr>
 <tr><td>채팅·가격 제안·알림·찜</td><td>탈퇴할 때까지 (상대방에게 보낸 메시지는 상대방 대화방에 남을 수 있음)</td></tr>
 <tr><td>신고 기록</td><td>처리 완료 후 1년 (분쟁 대응)</td></tr>
+<tr><td>로그인 인증 코드</td><td>10분 (사용하거나 만료되면 지움)</td></tr>
+<tr><td>크레딧 잔액·이용 내역</td><td>탈퇴할 때까지</td></tr>
+<tr><td>환불 신청 기록</td><td>처리 완료 후 5년 (분쟁 대응·회계 증빙). 송금을 마치면 계좌번호는 뒷자리 4개만 남기고 지웁니다.</td></tr>
 <tr><td>위치정보 이용·제공사실 확인자료</td><td>1년 보관 후 자동 파기 (동의 철회 시 즉시 파기)</td></tr>
 <tr><td>접속 기록</td><td>통신비밀보호법에 따라 3개월</td></tr>
 </table><p>보유 기간이 끝나거나 목적을 이룬 정보는 지체 없이 복구할 수 없는 방법으로 지웁니다.</p>
@@ -647,11 +661,12 @@ a{text-decoration:none;color:inherit}
 <h3>4. 처리 위탁과 국외 이전</h3><table>
 <tr><th>받는 자 (나라)</th><th>위탁 업무 · 이전 항목</th><th>이전 방법 · 보유 기간</th></tr>
 <tr><td>Cloudflare, Inc. (미국)</td><td>서버 운영, 데이터베이스(회원·글·채팅) 및 사진 저장 · 위 1번 정보 전체</td><td>서비스 이용 시 네트워크로 전송 · 위탁 계약 종료 또는 위 보유 기간까지</td></tr>
-<tr><td>Supabase, Inc. (미국)</td><td>coverfo 계정 로그인(인증) · 이메일, 계정 식별값, 프로필 정보</td><td>로그인 시 네트워크로 전송 · coverfo 계정 탈퇴 시까지</td></tr>
+<tr><td>Google LLC (미국)</td><td>구글 계정 로그인(본인 확인) · 이메일, 이름, 프로필 사진, 계정 식별값</td><td>구글 로그인을 고를 때 네트워크로 전송 · 구글 계정 정책에 따름</td></tr>
+<tr><td>Resend, Inc. (미국)</td><td>로그인 인증 코드 메일 발송 · 이메일 주소, 인증 코드</td><td>이메일 로그인을 요청할 때 네트워크로 전송 · 발송 후 위탁 계약에 따른 기간</td></tr>
 </table><p>국외 이전을 원하지 않으면 회원 가입(로그인)을 하지 않거나 탈퇴할 수 있습니다. 이 경우 글쓰기·채팅 등 로그인이 필요한 기능은 이용할 수 없습니다. 담당 연락처: hasin7jk@gmail.com</p>
 <h3>5. 이용자의 권리와 행사 방법</h3><ul>
 <li>이용자는 언제든 자기 개인정보의 열람, 정정, 삭제, 처리 정지와 탈퇴를 요청할 수 있습니다.</li>
-<li>닉네임·프로필 사진은 MY → ‘프로필 수정’, 탈퇴는 MY → ‘회원 탈퇴’, 위치정보는 MY → ‘위치 정보 삭제 (동의 철회)’로 바로 할 수 있습니다.</li>
+<li>닉네임·프로필 사진은 MY → ‘프로필 수정’, 크레딧 내역과 환불 신청은 MY → ‘내 크레딧’, 탈퇴는 MY → ‘회원 탈퇴’, 위치정보는 MY → ‘위치 정보 삭제 (동의 철회)’로 바로 할 수 있습니다.</li>
 <li>그 밖의 요청은 아래 개인정보 보호책임자에게 이메일로 보내 주시면 본인 확인 후 10일 이내에 처리하고 결과를 알려 드립니다.</li>
 <li>만 14세 미만 아동은 회원으로 가입할 수 없으며, 회사는 아동의 개인정보를 알고서 수집하지 않습니다.</li></ul>
 <h3>6. 이 기기에 저장하는 정보</h3><p>서비스는 광고·추적 쿠키를 쓰지 않습니다. 로그인 유지, 국가·거리 설정, 위치 동의 여부와 마지막 위치, 기기의 무작위 식별값을 이용자의 브라우저 저장소(localStorage)에만 저장하며, 브라우저의 사이트 데이터 삭제로 언제든 지울 수 있습니다.</p>
@@ -666,7 +681,7 @@ a{text-decoration:none;color:inherit}
 <li>개인정보분쟁조정위원회: 1833-6972 (www.kopico.go.kr)</li>
 <li>개인정보침해신고센터: 118 (privacy.kisa.or.kr)</li>
 <li>대검찰청: 1301 (www.spo.go.kr) · 경찰청: 182 (ecrm.police.go.kr)</li></ul>
-<h3>10. 처리방침의 변경</h3><p>이 방침을 바꾸면 시행 7일 전부터 서비스 안에 알립니다. 이 방침은 2026년 10월 22일부터 시행합니다.</p>
+<h3>10. 처리방침의 변경</h3><p>이 방침을 바꾸면 시행 7일 전부터 서비스 안에 알립니다. 이 방침은 2026년 10월 23일부터 시행합니다. (2026년 10월 23일 개정: pododa 전용 계정·크레딧 도입에 따라 구글 로그인, 이메일 발송, 크레딧·환불 정보 추가)</p>
   </div>
 </div>
 
@@ -686,7 +701,7 @@ a{text-decoration:none;color:inherit}
     </div>
     <label style="font-weight:700;font-size:13px">닉네임 (1~20자)</label>
     <input id="pfNick" maxlength="20" style="width:100%;box-sizing:border-box;margin:6px 0 4px;padding:12px;border:1px solid var(--lgray);border-radius:10px;font-size:15px">
-    <p style="font-size:12px;color:var(--gray)">다른 이용자에게 글과 채팅에서 보이는 이름이에요. 이메일은 coverfo 계정 것이라 여기서 바꿀 수 없어요.</p>
+    <p style="font-size:12px;color:var(--gray)">다른 이용자에게 글과 채팅에서 보이는 이름이에요. 이메일은 로그인에 쓰는 주소라 여기서 바꿀 수 없어요.</p>
     <div id="pfMsg" style="min-height:20px;font-size:13px;margin:6px 0"></div>
     <button type="button" id="pfSave" onclick="pfSave()" style="width:100%;padding:14px;border:0;border-radius:12px;background:#7C3AED;color:#fff;font-size:15px;font-weight:800;cursor:pointer">저장</button>
   </div>
@@ -701,7 +716,48 @@ a{text-decoration:none;color:inherit}
   <div id="myListBody" style="padding:4px 0 24px"></div>
 </div>
 
-<!-- ===== 회원 탈퇴 (v20) ===== -->
+<!-- ===== 내 크레딧 (v25: pododa 전용) ===== -->
+<div class="lbs-page" id="creditPage">
+  <div class="detail-header">
+    <span class="back" onclick="closeDoc('creditPage')">←</span>
+    <span class="dtitle">💜 내 크레딧</span>
+  </div>
+  <div class="lbs-body" style="max-width:460px;margin:0 auto">
+    <div style="text-align:center;padding:18px 12px;border-radius:16px;background:linear-gradient(135deg,#7C3AED,#9F67FF);color:#fff">
+      <div style="font-size:13px;opacity:.9">남은 크레딧</div>
+      <div id="crTotal" style="font-size:34px;font-weight:800;line-height:1.3">-</div>
+      <div id="crSplit" style="font-size:12.5px;opacity:.9"></div>
+    </div>
+    <p style="font-size:12px;color:var(--gray);margin-top:10px">pododa에서만 쓰는 크레딧이에요. coverfo·포도톡 크레딧과는 따로예요. <b>무료</b> 크레딧은 환불되지 않고, <b>유료</b> 크레딧은 남은 만큼 환불 신청할 수 있어요.</p>
+    <div style="padding:10px 12px;border-radius:12px;background:#f7f5fc;font-size:13px">💳 크레딧 충전은 준비 중이에요.</div>
+    <h3>환불 신청</h3>
+    <div id="crRefundBox" style="font-size:13px"></div>
+    <h3>이용 내역</h3>
+    <div id="crHistory" style="font-size:13px"></div>
+    <div id="crMsg" style="min-height:20px;font-size:13px;margin:8px 0"></div>
+  </div>
+</div>
+
+<!-- ===== 크레딧 관리 (v25: 관리자만) ===== -->
+<div class="lbs-page" id="adminCreditPage">
+  <div class="detail-header">
+    <span class="back" onclick="closeDoc('adminCreditPage')">←</span>
+    <span class="dtitle">🛠️ 크레딧 관리</span>
+  </div>
+  <div class="lbs-body" style="max-width:560px;margin:0 auto">
+    <h3>회원 찾기</h3>
+    <div style="display:flex;gap:6px">
+      <input id="adQ" type="email" placeholder="회원 이메일" style="flex:1;min-width:0;padding:10px;border:1px solid var(--lgray);border-radius:10px">
+      <button type="button" onclick="adSearch()" style="padding:10px 14px;border:0;border-radius:10px;background:#7C3AED;color:#fff;font-weight:700;cursor:pointer">찾기</button>
+    </div>
+    <div id="adFound" style="margin-top:10px"></div>
+    <h3>환불 신청</h3>
+    <div id="adRefunds"></div>
+    <div id="adMsg" style="min-height:20px;font-size:13px;margin:8px 0"></div>
+  </div>
+</div>
+
+<!-- ===== 회원 탈퇴 (v25: pododa 계정만) ===== -->
 <div class="lbs-page" id="withdrawPage">
   <div class="detail-header">
     <span class="back" onclick="closeDoc('withdrawPage')">←</span>
@@ -710,27 +766,19 @@ a{text-decoration:none;color:inherit}
   <div class="lbs-body" style="max-width:460px;margin:0 auto">
     <h3>탈퇴하면 지워지는 것</h3>
     <ul>
-      <li>pododa 프로필(닉네임·사진), 내가 올린 글과 사진</li>
+      <li>pododa 계정과 프로필(닉네임·사진), 내가 올린 글과 사진</li>
       <li>찜, 가격 제안, 알림, 내가 참여한 채팅방과 메시지</li>
-      <li>위치정보 이용 기록</li>
+      <li>위치정보 이용 기록, pododa 크레딧과 이용 내역</li>
     </ul>
-    <p style="font-size:12px;color:var(--gray)">신고 기록은 개인정보 처리방침에 따라 처리 완료 후 1년 보관한 뒤 지워요. 지운 정보는 되살릴 수 없어요.</p>
-    <h3>탈퇴 범위 고르기</h3>
-    <label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--lgray);border-radius:12px;margin-bottom:8px;cursor:pointer">
-      <input type="radio" name="wdScope" value="pododa" checked onchange="wdScopeChange()" style="margin-top:3px">
-      <span><b>pododa만 탈퇴</b><br><span style="font-size:12.5px;color:var(--gray)">pododa 정보만 지워요. coverfo 계정과 크레딧은 그대로 남아 coverfo·포도톡에서 계속 쓸 수 있어요.</span></span>
-    </label>
-    <label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--lgray);border-radius:12px;cursor:pointer">
-      <input type="radio" name="wdScope" value="all" onchange="wdScopeChange()" style="margin-top:3px">
-      <span><b>coverfo 계정까지 모두 탈퇴 + 크레딧 반납(환불)</b><br><span style="font-size:12.5px;color:var(--gray)">coverfo·포도톡·pododa에서 같이 쓰는 계정을 지우고, 남은 <b>충전 크레딧</b>은 결제를 취소해 돌려드려요. 무료 크레딧은 없어져요.</span></span>
-    </label>
-    <div id="wdPlan" style="display:none;margin-top:10px;padding:12px;border-radius:12px;background:#f7f5fc;font-size:13px;line-height:1.6"></div>
+    <p style="font-size:12px;color:var(--gray)">pododa 계정만 지워요. coverfo·포도톡은 따로 쓰는 서비스라 영향이 없어요. 신고 기록과 환불 처리 기록은 개인정보 처리방침에 따라 정해진 기간 보관한 뒤 지워요. 지운 정보는 되살릴 수 없어요.</p>
+    <h3>남은 크레딧</h3>
+    <div id="wdPlan" style="padding:12px;border-radius:12px;background:#f7f5fc;font-size:13px;line-height:1.7">확인하는 중…</div>
     <div id="wdAcct" style="display:none;margin-top:8px">
-      <p style="font-size:12.5px">가상계좌·계좌이체로 결제한 주문이 있어 환불받을 계좌가 필요해요.</p>
+      <p style="font-size:12.5px">남은 <b>유료 크레딧</b>은 탈퇴와 함께 환불 신청이 접수돼요. 돌려받을 계좌를 적어 주세요.</p>
       <input id="wdBank" placeholder="은행 이름 (예: 국민)" style="width:100%;box-sizing:border-box;margin:4px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">
-      <input id="wdNum" inputmode="numeric" placeholder="계좌번호 (숫자만)" style="width:100%;box-sizing:border-box;margin:4px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">
+      <input id="wdNum" inputmode="numeric" placeholder="계좌번호" style="width:100%;box-sizing:border-box;margin:4px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">
       <input id="wdHolder" placeholder="예금주" style="width:100%;box-sizing:border-box;margin:4px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">
-      <p style="font-size:11.5px;color:var(--gray)">계좌 정보는 환불에만 쓰고 pododa에 저장하지 않아요.</p>
+      <p style="font-size:11.5px;color:var(--gray)">계좌 정보는 환불에만 쓰고, 송금을 마치면 계좌번호 뒷자리 4개만 남기고 지워요.</p>
     </div>
     <h3>확인</h3>
     <p style="font-size:13px">정말 탈퇴하려면 아래 칸에 <b>탈퇴</b> 라고 적어 주세요.</p>
@@ -740,21 +788,30 @@ a{text-decoration:none;color:inherit}
   </div>
 </div>
 
-<!-- ===== 로그인 ===== -->
+<!-- ===== 로그인 (v25: pododa 전용 계정 — 구글 · 이메일 인증 코드) ===== -->
 <div class="login-page" id="loginPage">
+  <span onclick="document.getElementById('loginPage').classList.remove('show')" style="position:absolute;top:14px;left:18px;font-size:22px;cursor:pointer;color:#333">←</span>
   <div class="login-logo">pododa</div>
-  <p class="login-desc">전 세계 무료 거래 플랫폼<br>coverfo 계정으로 로그인</p>
-  <input type="email" id="loginEmail" placeholder="이메일 주소">
-  <button class="login-btn" onclick="doLogin()">매직 링크 보내기</button>
-  <p style="font-size:12px;color:var(--gray);text-align:center;margin-top:8px">coverfo.com 계정이 없으면 자동 가입됩니다</p>
-  <p style="font-size:13px;color:var(--pri);background:#F3EEFF;border-radius:8px;padding:10px 12px;text-align:center;margin-top:12px;line-height:1.5">📧 로그인 메일은 <b>coverfo</b>(포도 통합계정) 이름으로 발송됩니다</p>
+  <p class="login-desc">전 세계 무료 거래 플랫폼<br>처음이면 로그인할 때 자동으로 가입돼요</p>
+  <div id="gBtnWrap" style="width:100%;max-width:300px;display:flex;justify-content:center;min-height:44px"></div>
+  <p id="gNote" style="display:none;font-size:12px;color:#b45309;background:#fff7ed;border-radius:8px;padding:8px 10px;text-align:center;max-width:300px;margin:0;line-height:1.5"></p>
+  <div id="emailBox" style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px;align-items:center">
+    <div style="display:flex;align-items:center;gap:8px;width:100%;color:#aaa;font-size:12px"><span style="flex:1;height:1px;background:var(--lgray)"></span>또는 이메일로<span style="flex:1;height:1px;background:var(--lgray)"></span></div>
+    <input type="email" id="loginEmail" placeholder="이메일 주소" autocomplete="email">
+    <button class="login-btn" id="codeBtn" onclick="sendLoginCode()">인증 코드 받기</button>
+    <div id="codeStep" style="display:none;width:100%;flex-direction:column;gap:10px;align-items:center">
+      <input id="loginCode" inputmode="numeric" maxlength="6" placeholder="메일로 받은 6자리 코드" autocomplete="one-time-code" style="letter-spacing:4px;text-align:center;font-size:18px">
+      <button class="login-btn" id="verifyBtn" onclick="verifyLoginCode()">로그인</button>
+    </div>
+  </div>
+  <div id="loginMsg" style="font-size:13px;min-height:18px;text-align:center;max-width:300px;line-height:1.5"></div>
+  <p style="font-size:11.5px;color:#999;text-align:center;max-width:300px;line-height:1.6;margin:0">pododa 계정은 coverfo·포도톡 계정과 따로예요.<br>전에 쓰던 이메일로 로그인하면 내 글과 채팅이 그대로 이어져요.<br>로그인하면 <span onclick="openDoc('termsPage')" style="color:var(--pri);cursor:pointer;text-decoration:underline">이용약관</span>과 <span onclick="openDoc('privacyPage')" style="color:var(--pri);cursor:pointer;text-decoration:underline">개인정보처리방침</span>에 동의하는 것으로 봐요.</p>
 </div>
 
 <script>
 // ===== 설정 =====
 const API = 'https://pododa-api.hasin7jk.workers.dev/api';
-const SUPABASE_URL = 'https://pevmgpmpupenubrqwmyl.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBldm1ncG1wdXBlbnVicnF3bXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MzQ2NDAsImV4cCI6MjEwNDMxMDY0MH0.SWbMmtwqAWV89vIiCU8uIPGAwvln6fSTkpAV0nwFZFM';
+// v25: pododa 전용 계정 — coverfo(Supabase) 로그인은 쓰지 않음
 
 // ===== 상태 =====
 let currentTab = 0;
@@ -808,6 +865,7 @@ const subCats = {
 // ===== 초기화 =====
 window.addEventListener('DOMContentLoaded', async () => {
   await handleAuthCallback();
+  if (currentUser && localStorage.getItem('pd_token') && Date.now() - Number(localStorage.getItem('pd_tok_at') || 0) > 86400000) refreshToken();
   updateProfile();
   updateNationUI();
   renderSubCats();
@@ -1111,8 +1169,7 @@ async function submitPost() {
       document.getElementById('regPrice').value = '';
       loadPosts();
     } else if (res.status === 401) {
-      // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우:
-      // coverfo 로그인이 살아 있으면 메일 없이 pododa 토큰을 새로 받음
+      // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우 → 다시 로그인
       localStorage.removeItem('pd_token');
       localStorage.removeItem('pd_user');
       currentUser = null;
@@ -1315,87 +1372,110 @@ function checkLogin() {
   return false;
 }
 
-const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  if (!email) { alert('이메일을 입력하세요'); return; }
-  if (!window.supabase) { alert('Supabase SDK 로드 실패. 페이지를 새로고침 해주세요.'); return; }
-  const btn = document.querySelector('.login-btn');
-  btn.textContent = '전송 중...';
-  btn.disabled = true;
-  try {
-    const { error } = await supaClient.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: 'https://pododa.kr' }
-    });
-    btn.textContent = '매직 링크 보내기';
-    btn.disabled = false;
-    if (error) { alert('전송 실패: ' + error.message); return; }
-    alert('매직 링크를 보냈습니다!\n이메일을 확인해 주세요.');
-    document.getElementById('loginPage').classList.remove('show');
-  } catch (e) {
-    btn.textContent = '매직 링크 보내기';
-    btn.disabled = false;
-    alert('로그인 오류: ' + e.message);
+// ===== v25 pododa 전용 로그인: 구글 · 이메일 인증 코드 =====
+let pdAuthCfg = null;
+async function pdLoadAuthCfg() {
+  if (pdAuthCfg) return pdAuthCfg;
+  try { const r = await fetch(`${API}/auth/config`); pdAuthCfg = await r.json(); } catch (e) { return {}; }
+  return pdAuthCfg;
+}
+function loginMsg(t, err) { const m = document.getElementById('loginMsg'); m.textContent = t || ''; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
+let gsiLoading = null, gsiInited = false;
+function loadGsi() {
+  if (window.google && google.accounts && google.accounts.id) return Promise.resolve();
+  if (gsiLoading) return gsiLoading;
+  gsiLoading = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+    sc.onload = res; sc.onerror = () => { gsiLoading = null; rej(new Error('구글 로그인을 불러오지 못했어요')); };
+    document.head.appendChild(sc);
+  });
+  return gsiLoading;
+}
+async function pdPrepareLogin() {
+  const cfg = await pdLoadAuthCfg();
+  const wrap = document.getElementById('gBtnWrap'), note = document.getElementById('gNote');
+  document.getElementById('emailBox').style.display = cfg.email_login ? 'flex' : 'none';
+  if (!cfg.google_client_id && !cfg.email_login) { wrap.style.display = 'none'; loginMsg('로그인을 준비하고 있어요. 잠시 뒤 다시 시도해 주세요.', true); return; }
+  if (!cfg.google_client_id) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  // 카카오톡·네이버 등 앱 안 브라우저에서는 구글이 로그인을 막음
+  if (/KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\//i.test(navigator.userAgent)) {
+    note.style.display = 'block';
+    note.textContent = '카카오톡·네이버 앱 안에서는 구글 로그인이 막힐 수 있어요. 오른쪽 위 메뉴 → "다른 브라우저로 열기" 후 로그인하거나, 이메일로 로그인해 주세요.';
   }
+  try {
+    await loadGsi();
+    if (!gsiInited) {
+      google.accounts.id.initialize({ client_id: cfg.google_client_id, callback: onGoogleCredential, ux_mode: 'popup', auto_select: false });
+      gsiInited = true;
+    }
+    wrap.innerHTML = '';
+    google.accounts.id.renderButton(wrap, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: 300, locale: 'ko' });
+  } catch (e) { note.style.display = 'block'; note.textContent = e.message + ' — 이메일로 로그인해 주세요.'; }
+}
+// 로그인 화면이 열릴 때마다 단추 준비
+new MutationObserver(() => {
+  if (document.getElementById('loginPage').classList.contains('show')) { loginMsg(''); pdPrepareLogin(); }
+}).observe(document.getElementById('loginPage'), { attributes: true, attributeFilter: ['class'] });
+
+async function pdFinishLogin(req) {
+  try {
+    const r = await req;
+    const j = await r.json();
+    if (!r.ok || !j.token) throw new Error(j.message || j.error || r.status);
+    localStorage.setItem('pd_token', j.token);
+    localStorage.setItem('pd_user', JSON.stringify(j.user));
+    localStorage.setItem('pd_tok_at', String(Date.now()));
+    currentUser = j.user;
+    loginMsg('');
+    document.getElementById('loginPage').classList.remove('show');
+    updateProfile();
+    if (!locOk && localStorage.getItem('pd_loc_asked') !== '1') showLocConsent();
+    return true;
+  } catch (e) { loginMsg('로그인하지 못했어요: ' + e.message, true); return false; }
+}
+function onGoogleCredential(resp) {
+  loginMsg('로그인하는 중…');
+  pdFinishLogin(fetch(`${API}/auth/google`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential: resp.credential, nation_code: currentNation, lang_code: currentLang }) }));
+}
+async function sendLoginCode() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { loginMsg('이메일 주소를 확인해 주세요', true); return; }
+  const btn = document.getElementById('codeBtn'); btn.disabled = true; loginMsg('코드를 보내는 중…');
+  try {
+    const r = await fetch(`${API}/auth/email/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || j.error || r.status);
+    document.getElementById('codeStep').style.display = 'flex';
+    btn.textContent = '코드 다시 받기';
+    loginMsg('메일로 6자리 코드를 보냈어요. 10분 안에 입력해 주세요. (안 보이면 스팸함도 확인)');
+    setTimeout(() => document.getElementById('loginCode').focus(), 100);
+  } catch (e) { loginMsg(e.message, true); }
+  btn.disabled = false;
+}
+async function verifyLoginCode() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const code = document.getElementById('loginCode').value.replace(/\D/g, '');
+  if (code.length !== 6) { loginMsg('6자리 코드를 적어 주세요', true); return; }
+  const btn = document.getElementById('verifyBtn'); btn.disabled = true; loginMsg('확인하는 중…');
+  const ok = await pdFinishLogin(fetch(`${API}/auth/email/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, nation_code: currentNation, lang_code: currentLang }) }));
+  btn.disabled = false;
+  if (ok) { document.getElementById('loginCode').value = ''; document.getElementById('codeStep').style.display = 'none'; document.getElementById('codeBtn').textContent = '인증 코드 받기'; }
 }
 
-// Supabase 매직링크 콜백 처리 (URL 해시에 토큰 포함)
-let pdLoginBusy = false;
-// 주소 끝에 남은 '#' 제거 (주소가 '#'으로 끝나면 location.hash 값이 빈 문자열이라 따로 검사)
+// 주소 끝에 남은 '#' 제거 (예전 매직 링크 주소로 들어온 경우)
 function pdCleanHash() {
-  if (location.href.includes('#')) history.replaceState(null, '', location.pathname + location.search);
+  if (location.href.includes('#') && !['#lbs', '#privacy', '#terms'].includes(location.hash)) history.replaceState(null, '', location.pathname + location.search);
 }
-async function handleAuthCallback() {
-  const { data, error } = await supaClient.auth.getSession();
-  pdCleanHash();
-  if (currentUser || pdLoginBusy) return;
-  if (error || !data.session) return;
-  await pdRegisterSession(data.session);
-}
-supaClient.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' && session && !currentUser) pdRegisterSession(session);
-});
-async function pdRegisterSession(session) {
-  if (pdLoginBusy) return;
-  pdLoginBusy = true;
-  const sbUser = session.user;
-  // Worker에 사용자 등록/조회
-  try {
-    const res = await fetch(`${API}/auth/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        access_token: session.access_token,
-        email: sbUser.email,
-        supabase_uid: sbUser.id,
-        nickname: sbUser.user_metadata?.full_name || sbUser.email.split('@')[0],
-        profile_img: sbUser.user_metadata?.avatar_url || '',
-        nation_code: currentNation,
-        lang_code: currentLang
-      })
-    });
-    const result = await res.json();
-    if (result.token) {
-      localStorage.setItem('pd_token', result.token);
-      localStorage.setItem('pd_user', JSON.stringify(result.user));
-      currentUser = result.user;
-      updateProfile();
-      if (!locOk && localStorage.getItem('pd_loc_asked') !== '1') showLocConsent();
-    } else {
-      alert('pododa 로그인 실패: ' + (result.message || result.error || res.status));
-    }
-  } catch (e) { alert('pododa 로그인 오류: ' + e.message); }
-  pdLoginBusy = false;
-  // URL 해시 제거
-  pdCleanHash();
-}
+async function handleAuthCallback() { pdCleanHash(); }
 
 function doLogout() {
   if (confirm('로그아웃 하시겠습니까?')) {
     currentUser = null;
-    try { supaClient.auth.signOut(); } catch (e) {}
+    try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) {}
     localStorage.removeItem('pd_user');
     localStorage.removeItem('pd_token');
     updateProfile();
@@ -1407,31 +1487,19 @@ function authHeaders() {
   const token = localStorage.getItem('pd_token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
+// 로그인 표 연장 (지금 표가 아직 살아 있을 때만 됨)
 async function refreshToken() {
   try {
-    const { data } = await supaClient.auth.getSession();
-    if (!data || !data.session) return false;
-    const s = data.session;
-    const res = await fetch(`${API}/auth/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        access_token: s.access_token,
-        email: s.user.email,
-        supabase_uid: s.user.id,
-        nickname: currentUser?.nickname || s.user.email.split('@')[0],
-        profile_img: currentUser?.profile_img || '',
-        nation_code: currentNation,
-        lang_code: currentLang
-      })
-    });
-    const result = await res.json();
-    if (result.token) {
-      localStorage.setItem('pd_token', result.token);
-      if (result.user) { currentUser = result.user; localStorage.setItem('pd_user', JSON.stringify(result.user)); }
-      return true;
-    }
-    return false;
+    const t = localStorage.getItem('pd_token');
+    if (!t) return false;
+    const r = await fetch(`${API}/auth/refresh`, { method: 'POST', headers: { Authorization: 'Bearer ' + t } });
+    if (!r.ok) return false;
+    const j = await r.json();
+    if (!j.token) return false;
+    localStorage.setItem('pd_token', j.token);
+    localStorage.setItem('pd_tok_at', String(Date.now()));
+    if (j.user) { currentUser = j.user; localStorage.setItem('pd_user', JSON.stringify(j.user)); }
+    return true;
   } catch (e) { return false; }
 }
 
@@ -1447,6 +1515,7 @@ function updateProfile() {
     document.getElementById('myPosts').textContent = currentUser.post_count || 0;
     document.getElementById('myTrades').textContent = currentUser.trade_count || 0;
     document.getElementById('myScore').textContent = currentUser.trust_score || 0;
+    pdCreditBadge();
   } else {
     guest.style.display = 'flex';
     logged.style.display = 'none';
@@ -1725,59 +1794,149 @@ async function pfSave() {
   btn.disabled = false;
 }
 
-// ===== v20 회원 탈퇴 (크레딧 반납 포함) =====
-let wdNeedsAcct = false;
-function openWithdraw() {
-  if (!currentUser) { document.getElementById('loginPage').classList.add('show'); return; }
-  document.querySelector('input[name="wdScope"][value="pododa"]').checked = true;
-  document.getElementById('wdConfirm').value = ''; wdMsg('');
-  wdScopeChange(); openDoc('withdrawPage');
+// ===== v25 pododa 크레딧 =====
+const fmtCr = (n) => (Math.round(Number(n || 0) * 10) / 10).toLocaleString('ko-KR');
+const CR_KIND = { grant_free: '무료 지급', grant_paid: '유료 지급', deduct_free: '무료 차감', deduct_paid: '유료 차감', refund_request: '환불 신청', refund_reject: '환불 반려 (되돌림)' };
+const RF_STATUS = { requested: '처리 중', done: '송금 완료', rejected: '반려' };
+async function pdCredits() {
+  const r = await fetch(`${API}/credits`, { headers: authHeaders() });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) throw new Error('로그인이 만료됐어요. 다시 로그인해 주세요.');
+  if (!r.ok) throw new Error(j.message || j.error || r.status);
+  return j;
 }
-function wdMsg(t, err) { const m = document.getElementById('wdMsg'); m.textContent = t; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
-async function sbToken() {
-  try { const { data } = await supaClient.auth.getSession(); return (data && data.session && data.session.access_token) || ''; } catch (e) { return ''; }
-}
-async function wdScopeChange() {
-  const all = document.querySelector('input[name="wdScope"]:checked').value === 'all';
-  const box = document.getElementById('wdPlan'); wdNeedsAcct = false;
-  document.getElementById('wdAcct').style.display = 'none';
-  if (!all) { box.style.display = 'none'; return; }
-  box.style.display = 'block'; box.textContent = '남은 크레딧과 환불 금액을 확인하는 중…';
-  const tok = await sbToken();
-  if (!tok) { box.innerHTML = '보안을 위해 <b>로그아웃 후 다시 로그인</b>한 뒤 coverfo 계정 탈퇴를 진행해 주세요.'; return; }
+async function pdCreditBadge() {
   try {
-    const r = await fetch(`${API}/me/withdraw-plan`, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ sb_token: tok }) });
+    const j = await pdCredits();
+    document.getElementById('myCreditBadge').textContent = fmtCr(j.total);
+    document.getElementById('adminCreditMenu').style.display = j.is_admin ? '' : 'none';
+  } catch (e) {}
+}
+function crMsg(t, err) { const m = document.getElementById('crMsg'); m.textContent = t || ''; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
+async function openCredits() {
+  if (!checkLogin()) return;
+  openDoc('creditPage'); crMsg('불러오는 중…');
+  try {
+    const j = await pdCredits(); crMsg('');
+    document.getElementById('crTotal').textContent = fmtCr(j.total);
+    document.getElementById('crSplit').textContent = '무료 ' + fmtCr(j.free) + ' · 유료 ' + fmtCr(j.paid);
+    document.getElementById('myCreditBadge').textContent = fmtCr(j.total);
+    const pend = (j.refunds || []).find((x) => x.status === 'requested');
+    const box = document.getElementById('crRefundBox');
+    let h = '';
+    if (pend) h += '<div style="padding:10px 12px;border-radius:12px;background:#fff7ed;color:#9a3412">⏳ 환불 처리 중: 유료 ' + fmtCr(pend.credits) + ' 크레딧 → ' + Number(pend.won).toLocaleString('ko-KR') + '원 (' + esc(pend.bank) + ' · ' + esc(pend.holder) + ')<br><span style="font-size:12px">확인 후 적어 주신 계좌로 보내 드려요.</span></div>';
+    else if (j.paid > 0) h += '<p>유료 크레딧 <b>' + fmtCr(j.paid) + '</b>개 → <b>' + Math.round(j.paid * j.credit_won).toLocaleString('ko-KR') + '원</b> (1크레딧 = ' + j.credit_won + '원) 을 돌려받을 수 있어요.</p>'
+      + '<input id="crBank" placeholder="은행 이름 (예: 국민)" style="width:100%;box-sizing:border-box;margin:3px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">'
+      + '<input id="crNum" inputmode="numeric" placeholder="계좌번호" style="width:100%;box-sizing:border-box;margin:3px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">'
+      + '<input id="crHolder" placeholder="예금주" style="width:100%;box-sizing:border-box;margin:3px 0;padding:10px;border:1px solid var(--lgray);border-radius:10px">'
+      + '<button type="button" id="crGo" onclick="crRefund()" style="width:100%;margin-top:6px;padding:12px;border:0;border-radius:12px;background:#7C3AED;color:#fff;font-weight:800;cursor:pointer">환불 신청</button>';
+    else h += '<p style="color:var(--gray)">환불할 유료 크레딧이 없어요.</p>';
+    const past = (j.refunds || []).filter((x) => x.status !== 'requested');
+    if (past.length) h += '<div style="margin-top:8px;font-size:12px;color:var(--gray)">' + past.map((x) => (x.created_at || '').slice(0, 10) + ' · ' + Number(x.won).toLocaleString('ko-KR') + '원 · ' + (RF_STATUS[x.status] || x.status) + (x.admin_memo ? ' (' + esc(x.admin_memo) + ')' : '')).join('<br>') + '</div>';
+    box.innerHTML = h;
+    const hist = j.history || [];
+    document.getElementById('crHistory').innerHTML = hist.length ? hist.map((x) => {
+      const d = Number(x.free_delta) + Number(x.paid_delta);
+      return '<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--lgray)"><div style="flex:1"><b>' + (CR_KIND[x.kind] || esc(x.kind)) + '</b>' + (x.memo ? ' <span style="color:var(--gray)">' + esc(x.memo) + '</span>' : '') + '<br><span style="font-size:11.5px;color:#999">' + esc((x.created_at || '').slice(0, 16)) + '</span></div><div style="text-align:right;font-weight:700;color:' + (d < 0 ? 'var(--red)' : 'var(--pri)') + '">' + (d > 0 ? '+' : '') + fmtCr(d) + '<br><span style="font-size:11px;color:#999;font-weight:400">잔액 ' + fmtCr(Number(x.free_after) + Number(x.paid_after)) + '</span></div></div>';
+    }).join('') : '<p style="color:var(--gray)">아직 내역이 없어요.</p>';
+  } catch (e) { crMsg(e.message, true); }
+}
+async function crRefund() {
+  const account = { bank: document.getElementById('crBank').value.trim(), account_no: document.getElementById('crNum').value.trim(), holder: document.getElementById('crHolder').value.trim() };
+  if (!account.bank || account.account_no.replace(/\D/g, '').length < 6 || !account.holder) { crMsg('은행, 계좌번호, 예금주를 모두 적어 주세요', true); return; }
+  if (!confirm('남은 유료 크레딧 전부를 환불 신청할까요? 신청하면 잔액에서 바로 빠져요.')) return;
+  const btn = document.getElementById('crGo'); btn.disabled = true; crMsg('신청하는 중…');
+  try {
+    const r = await fetch(`${API}/credits/refund`, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ account }) });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.message || j.error || r.status);
+    alert(Number(j.won).toLocaleString('ko-KR') + '원 환불 신청을 받았어요. 확인 후 적어 주신 계좌로 보내 드려요.');
+    openCredits();
+  } catch (e) { crMsg('신청하지 못했어요: ' + e.message, true); btn.disabled = false; }
+}
+
+// ----- 관리자: 크레딧 지급 · 환불 처리 -----
+function adMsg(t, err) { const m = document.getElementById('adMsg'); m.textContent = t || ''; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
+async function adFetch(path, opt) {
+  const r = await fetch(`${API}/admin/${path}`, Object.assign({}, opt || {}, { headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()) }));
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 403) throw new Error('관리자만 쓸 수 있어요');
+  if (!r.ok || j.ok === false) throw new Error(j.message || j.error || r.status);
+  return j;
+}
+async function openAdminCredits() { if (!checkLogin()) return; openDoc('adminCreditPage'); adLoad(); }
+async function adSearch() { adLoad(document.getElementById('adQ').value.trim()); }
+async function adLoad(q) {
+  adMsg('불러오는 중…');
+  try {
+    const j = await adFetch('credits' + (q ? '?q=' + encodeURIComponent(q) : ''));
+    adMsg('');
+    const f = document.getElementById('adFound');
+    if (q && !j.found) f.innerHTML = '<p style="color:var(--red)">그 이메일로 가입한 회원이 없어요.</p>';
+    else if (j.found) {
+      const u = j.found;
+      f.innerHTML = '<div style="padding:12px;border-radius:12px;background:#f7f5fc"><b>' + esc(u.user.nickname || '') + '</b> <span style="color:var(--gray)">' + esc(u.user.email) + '</span><br>무료 <b>' + fmtCr(u.free) + '</b> · 유료 <b>' + fmtCr(u.paid) + '</b></div>'
+        + '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><select id="adKind" style="padding:10px;border:1px solid var(--lgray);border-radius:10px"><option value="free">무료</option><option value="paid">유료 (환불 가능)</option></select>'
+        + '<input id="adAmt" inputmode="decimal" placeholder="수량 (빼려면 -10)" style="flex:1;min-width:110px;padding:10px;border:1px solid var(--lgray);border-radius:10px"></div>'
+        + '<input id="adMemo" placeholder="메모 (예: 계좌 입금 1만원, 이벤트)" style="width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border:1px solid var(--lgray);border-radius:10px">'
+        + '<button type="button" onclick="adGrant(\'' + esc(u.user.email).replace(/'/g, '') + '\')" style="width:100%;margin-top:6px;padding:12px;border:0;border-radius:12px;background:#7C3AED;color:#fff;font-weight:800;cursor:pointer">지급 / 차감</button>'
+        + '<div style="margin-top:8px;font-size:12px">' + (u.history || []).map((x) => esc((x.created_at || '').slice(0, 16)) + ' · ' + (CR_KIND[x.kind] || esc(x.kind)) + ' ' + fmtCr(Number(x.free_delta) + Number(x.paid_delta)) + (x.memo ? ' · ' + esc(x.memo) : '')).join('<br>') + '</div>';
+    } else f.innerHTML = '';
+    const rf = j.refunds || [];
+    document.getElementById('adRefunds').innerHTML = rf.length ? rf.map((x) => '<div style="padding:10px 0;border-bottom:1px solid var(--lgray);font-size:13px"><b>' + Number(x.won).toLocaleString('ko-KR') + '원</b> (' + fmtCr(x.credits) + ' 크레딧) · ' + (RF_STATUS[x.status] || x.status) + (x.reason === 'withdraw' ? ' · 탈퇴' : '') + '<br>' + esc(x.email) + '<br>' + esc(x.bank) + ' ' + esc(x.account_no) + ' · ' + esc(x.holder) + ' · <span style="color:#999">' + esc((x.created_at || '').slice(0, 16)) + '</span>'
+      + (x.status === 'requested' ? '<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="adRefund(' + x.id + ',\'done\')" style="flex:1;padding:9px;border:0;border-radius:10px;background:#16a34a;color:#fff;font-weight:700;cursor:pointer">송금 완료</button><button type="button" onclick="adRefund(' + x.id + ',\'reject\')" style="flex:1;padding:9px;border:1px solid var(--lgray);border-radius:10px;background:#fff;cursor:pointer">반려 (크레딧 되돌림)</button></div>' : (x.admin_memo ? '<br><span style="color:var(--gray)">' + esc(x.admin_memo) + '</span>' : '')) + '</div>').join('') : '<p style="color:var(--gray)">환불 신청이 없어요.</p>';
+  } catch (e) { adMsg(e.message, true); }
+}
+async function adGrant(email) {
+  const amount = Number(document.getElementById('adAmt').value);
+  const kind = document.getElementById('adKind').value;
+  if (!amount) { adMsg('수량을 적어 주세요', true); return; }
+  if (!confirm(email + ' 에게 ' + (kind === 'paid' ? '유료' : '무료') + ' 크레딧 ' + amount + ' 을(를) ' + (amount > 0 ? '지급' : '차감') + '할까요?')) return;
+  try { await adFetch('credits/grant', { method: 'POST', body: JSON.stringify({ email, kind, amount, memo: document.getElementById('adMemo').value.trim() }) }); adLoad(email); setTimeout(() => adMsg('처리했어요'), 300); }
+  catch (e) { adMsg(e.message, true); }
+}
+async function adRefund(id, action) {
+  const memo = prompt(action === 'done' ? '송금을 마쳤나요? 메모 (선택)' : '반려 사유 (회원에게 보여요)', '');
+  if (memo === null) return;
+  try { await adFetch('refunds/' + id, { method: 'POST', body: JSON.stringify({ action, memo }) }); adLoad(document.getElementById('adQ').value.trim()); }
+  catch (e) { adMsg(e.message, true); }
+}
+
+// ===== v25 회원 탈퇴 (pododa 계정만) =====
+let wdNeedsAcct = false;
+function wdMsg(t, err) { const m = document.getElementById('wdMsg'); m.textContent = t; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
+async function openWithdraw() {
+  if (!currentUser) { document.getElementById('loginPage').classList.add('show'); return; }
+  document.getElementById('wdConfirm').value = ''; wdMsg(''); wdNeedsAcct = false;
+  document.getElementById('wdAcct').style.display = 'none';
+  const box = document.getElementById('wdPlan'); box.textContent = '확인하는 중…';
+  openDoc('withdrawPage');
+  try {
+    const r = await fetch(`${API}/me/withdraw-plan`, { method: 'POST', headers: authHeaders() });
     const j = await r.json();
     if (!r.ok || !j.plan) throw new Error(j.message || j.error || r.status);
-    const p = j.plan, won = (n) => Number(n || 0).toLocaleString('ko-KR');
-    wdNeedsAcct = !!p.needsAccount;
+    const p = j.plan;
+    wdNeedsAcct = p.paid > 0;
     document.getElementById('wdAcct').style.display = wdNeedsAcct ? 'block' : 'none';
-    box.innerHTML = '💜 충전 크레딧 <b>' + won(p.paid) + '</b> · 무료 크레딧 ' + won(p.free) + ' (탈퇴하면 없어져요)<br>'
-      + (p.total > 0 ? '💳 환불 예정 금액 <b>' + won(p.total) + '원</b> (' + (p.items || []).length + '건, 결제한 카드·수단으로 취소)' : '💳 환불할 금액이 없어요')
-      + '<br><span style="font-size:12px;color:var(--gray)">규칙: 결제 ' + p.rule.fullDays + '일 안에 전혀 안 쓴 주문은 전액, 그 밖은 ' + p.rule.feePct + '% 공제 · 결제 '
-      + p.rule.maxDays + '일 지난 주문·수동 충전분은 제외 · 합계 ' + won(p.rule.minWon) + '원 미만은 환불 없음</span>';
-  } catch (e) { box.textContent = '환불 정보를 불러오지 못했어요: ' + e.message; }
+    box.innerHTML = '무료 크레딧 <b>' + fmtCr(p.free) + '</b> — 탈퇴하면 없어져요<br>'
+      + (p.paid > 0 ? '유료 크레딧 <b>' + fmtCr(p.paid) + '</b> → <b>' + Number(p.won).toLocaleString('ko-KR') + '원</b> 환불 신청이 함께 접수돼요 (1크레딧 = ' + p.credit_won + '원)' : '유료 크레딧 0 — 환불할 금액이 없어요')
+      + (p.pending ? '<br>⏳ 처리 중인 환불 신청 ' + p.pending + '건은 탈퇴해도 그대로 처리해 드려요.' : '');
+  } catch (e) { box.textContent = '크레딧 정보를 불러오지 못했어요: ' + e.message; }
 }
 async function wdSubmit() {
   if (document.getElementById('wdConfirm').value.trim() !== '탈퇴') { wdMsg('확인 칸에 "탈퇴" 라고 적어 주세요', true); return; }
-  const all = document.querySelector('input[name="wdScope"]:checked').value === 'all';
-  const body = { confirm: '탈퇴', scope: all ? 'all' : 'pododa' };
-  if (all) {
-    body.sb_token = await sbToken(); body.refund = true;
-    if (!body.sb_token) { wdMsg('보안을 위해 로그아웃 후 다시 로그인해 주세요', true); return; }
-    if (wdNeedsAcct) {
-      body.account = { bank: document.getElementById('wdBank').value.trim(), accountNumber: document.getElementById('wdNum').value.replace(/\D/g, ''), holderName: document.getElementById('wdHolder').value.trim() };
-      if (!body.account.bank || !body.account.accountNumber || !body.account.holderName) { wdMsg('환불받을 계좌를 모두 적어 주세요', true); return; }
-    }
+  const body = { confirm: '탈퇴' };
+  if (wdNeedsAcct) {
+    body.account = { bank: document.getElementById('wdBank').value.trim(), account_no: document.getElementById('wdNum').value.trim(), holder: document.getElementById('wdHolder').value.trim() };
+    if (!body.account.bank || body.account.account_no.replace(/\D/g, '').length < 6 || !body.account.holder) { wdMsg('환불받을 계좌를 모두 적어 주세요', true); return; }
   }
-  if (!confirm(all ? 'coverfo 계정까지 탈퇴하고 크레딧을 환불받을까요? 되돌릴 수 없어요.' : 'pododa에서 탈퇴할까요? 되돌릴 수 없어요.')) return;
-  const btn = document.getElementById('wdGo'); btn.disabled = true; wdMsg(all ? '환불하고 탈퇴하는 중… (최대 1분)' : '탈퇴하는 중…');
+  if (!confirm('pododa에서 탈퇴할까요? 되돌릴 수 없어요.')) return;
+  const btn = document.getElementById('wdGo'); btn.disabled = true; wdMsg('탈퇴하는 중…');
   try {
     const r = await fetch(`${API}/me/withdraw`, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify(body) });
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.message || j.error || r.status);
-    const refunded = j.refund && j.refund.total ? ' 환불 ' + Number(j.refund.total).toLocaleString('ko-KR') + '원을 결제 취소로 돌려드렸어요.' : '';
-    if (all) { try { await supaClient.auth.signOut(); } catch (e) {} }
+    const refunded = j.refund && j.refund.won ? ' 유료 크레딧 ' + Number(j.refund.won).toLocaleString('ko-KR') + '원 환불 신청을 받았어요. 확인 후 적어 주신 계좌로 보내 드려요.' : '';
     localStorage.removeItem('pd_user'); localStorage.removeItem('pd_token'); currentUser = null;
     alert('탈퇴가 끝났어요.' + refunded + ' 그동안 pododa를 이용해 주셔서 감사합니다.');
     closeDoc('withdrawPage'); updateProfile(); showPage('feed');
@@ -1793,6 +1952,8 @@ const PD_BACK_LAYERS = [
   ['privacyPage', () => closeDoc('privacyPage')],
   ['profilePage', () => closeDoc('profilePage')],
   ['withdrawPage', () => closeDoc('withdrawPage')],
+  ['adminCreditPage', () => closeDoc('adminCreditPage')],
+  ['creditPage', () => closeDoc('creditPage')],
   ['termsPage', () => closeDoc('termsPage')],
   ['notiModal', () => closeNoti()],
   ['langModal', () => closeLangModal()],
@@ -1839,6 +2000,9 @@ window.addEventListener('popstate', () => {
 window.addEventListener('load', () => { pdArmBack(); });
 // 주소로도 열림: pododa.kr/#lbs
 if (location.hash === '#lbs') setTimeout(openLbsTerms, 300);
+// v25: pododa.kr/#privacy · pododa.kr/#terms 로 개인정보처리방침·이용약관 바로 열기 (구글 로그인 설정에 쓰는 주소)
+if (location.hash === '#privacy') setTimeout(() => openDoc('privacyPage'), 300);
+if (location.hash === '#terms') setTimeout(() => openDoc('termsPage'), 300);
 
 // ===== 유틸 =====
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
