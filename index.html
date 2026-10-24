@@ -362,7 +362,7 @@ a{text-decoration:none;color:inherit}
       </select>
     </div>
     <div class="form-group" id="regSubCatGroup">
-      <label>세부 카테고리</label>
+      <label id="regSubCatLabel">세부 카테고리</label>
       <select id="regSubCat"></select>
     </div>
     <div class="form-group">
@@ -376,7 +376,7 @@ a{text-decoration:none;color:inherit}
       <label>제목</label>
       <input type="text" id="regTitle" placeholder="제목을 입력하세요" maxlength="50">
     </div>
-    <div class="form-group">
+    <div class="form-group" id="regPriceGroup">
       <label>가격</label>
       <div style="display:flex;gap:8px">
         <input type="text" id="regPrice" placeholder="가격" style="flex:1">
@@ -392,6 +392,10 @@ a{text-decoration:none;color:inherit}
     <div class="form-group">
       <label>설명</label>
       <textarea id="regBody" placeholder="상세 설명을 입력하세요" maxlength="5000"></textarea>
+      <div id="regAiBox" class="hide" style="margin-top:8px">
+        <button type="button" id="regAiBtn" onclick="aiWrite()" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#9F67FF);color:#fff;font-size:14px;font-weight:600;cursor:pointer">✨ AI 글쓰기 (무료) — 대충 써도 알아서 채워줘요</button>
+        <p id="regAiMsg" style="font-size:12px;color:var(--gray);margin-top:6px;line-height:1.5">몇 단어만 적고 눌러 보세요. 제목과 내용을 AI가 다듬어 채워 드려요. 마음에 안 들면 다시 누르거나 직접 고치면 돼요.</p>
+      </div>
     </div>
     <div class="form-group" id="regAddressGroup">
       <label>위치 / 주소</label>
@@ -967,7 +971,7 @@ const subCats = {
   1: ['전체','전자기기','가구','생활','여성의류','남성의류','뷰티','스포츠','게임/취미','도서/음반','중고차','공구','유아'],
   2: ['전체','치킨','피자','패스트푸드','돈까스','족발/보쌈','프랜차이즈','분식','도시락','찜탕','죽/도시락','카페/디저트','야식'],
   3: ['전체','맛집','카페','편의시설','의료','숙소'],
-  4: [] // 자연은 서브카테고리 없음
+  4: ['전체','대화','홍보','자랑','질문','추천','모임','풍경/여행','일상'] // 자연: 교류 글 종류
 };
 
 // ===== 초기화 =====
@@ -1080,7 +1084,9 @@ function renderPostCard(p, showNationFlag) {
     <img class="thumb" src="${img || ''}" loading="lazy" onerror="this.style.background='var(--lgray)';this.src=''">
     <div class="info">
       <div class="title">${statusText ? `<span class="status-badge ${statusClass}">${statusText}</span> ` : ''}<span data-cf-noui="1">${esc(p.title)}</span>${nationFlag ? `<span onclick="event.stopPropagation();goNation('${p.nation_code}')" style="float:right;cursor:pointer;font-size:18px" title="${p.nation_code}">${nationFlag}</span>` : ''}</div>
-      <div class="price">${p.price ? p.price + ' ' + (p.currency||'') : '가격 없음'}</div>
+      ${Number(p.category) === 4
+        ? `<div style="font-size:13px;color:var(--pri);font-weight:600">🌿 ${esc((subCats[4] || [])[Number(p.sub_cate) + 1] || '이야기')}</div>`
+        : `<div class="price">${p.price ? p.price + ' ' + (p.currency||'') : '가격 없음'}</div>`}
       <div style="font-size:12px;color:var(--gray)" data-cf-noui="1">${esc(p.address || '')}</div>
       <div class="meta">
         <span>❤️ ${p.like_count||0}</span>
@@ -1130,7 +1136,11 @@ async function openDetail(postId) {
     sb.innerHTML = p.sale_status === 1 ? '<span class="status-badge status-reserved" style="margin-top:12px">예약중</span>'
       : p.sale_status === 2 ? '<span class="status-badge status-done" style="margin-top:12px">거래완료</span>' : '';
     document.getElementById('dTitle').textContent = p.title;
-    document.getElementById('dPrice').textContent = p.price ? `${p.price} ${p.currency || ''}` : '';
+    const isNature = Number(p.category) === 4;
+    document.getElementById('dPrice').textContent = isNature ? '' : (p.price ? `${p.price} ${p.currency || ''}` : '');
+    // 자연: 가격제안 대신 대화하기만
+    document.querySelector('#detailBottom .offer-btn').style.display = isNature ? 'none' : '';
+    document.querySelector('#detailBottom .chat-btn').textContent = isNature ? '💬 대화하기' : '💬 채팅하기';
     document.getElementById('dMeta').innerHTML = `<span data-cf-noui="1">📍 ${esc(p.address || '')}</span><span>🕐 ${timeAgo(p.created_at)}</span>`;
     document.getElementById('dBody').textContent = p.body || '';
     // 배달/내주변 추가 정보
@@ -1227,6 +1237,50 @@ function onRegCatChange() {
   document.getElementById('regCompanyGroup').classList.toggle('hide', cat !== 1);
   document.getElementById('regStatusGroup').classList.toggle('hide', cat >= 2);
   document.getElementById('regAddressGroup').classList.toggle('hide', cat === 4);
+  // 자연: 가격·화폐 없음, 교류 글(대화·홍보·자랑·질문·모임…) + AI 글쓰기
+  const nature = cat === 4;
+  document.getElementById('regPriceGroup').classList.toggle('hide', nature);
+  document.getElementById('regAiBox').classList.toggle('hide', !nature);
+  document.getElementById('regSubCatLabel').textContent = nature ? '어떤 글인가요?' : '세부 카테고리';
+  document.querySelector('#regPage .rtitle').textContent = nature ? '🌿 이야기 나누기' : '무료 등록';
+  document.getElementById('regTitle').placeholder = nature ? '예: 오늘 동네 산책길 노을 보세요 🌅' : '제목을 입력하세요';
+  document.getElementById('regBody').placeholder = nature
+    ? '자유롭게 적어 주세요. 자랑·홍보·질문·추천·모임 모집 모두 좋아요.\n대충 써도 아래 ✨ AI 글쓰기가 다듬어 줘요.'
+    : '상세 설명을 입력하세요';
+}
+
+// ===== 자연: 무료 AI 글쓰기 (서버의 Cloudflare Workers AI 사용) =====
+async function aiWrite() {
+  if (!checkLogin()) return;
+  const btn = document.getElementById('regAiBtn');
+  const msg = document.getElementById('regAiMsg');
+  const tEl = document.getElementById('regTitle'), bEl = document.getElementById('regBody');
+  const sel = document.getElementById('regSubCat');
+  const kind = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+  if (!tEl.value.trim() && !bEl.value.trim()) { msg.style.color = 'var(--red)'; msg.textContent = '제목이나 내용에 몇 단어라도 적어 주세요. (예: 강아지 산책 자랑)'; return; }
+  btn.disabled = true; btn.textContent = '✨ AI가 쓰는 중…';
+  msg.style.color = 'var(--gray)'; msg.textContent = '잠시만 기다려 주세요 (5~15초)';
+  try {
+    const body = JSON.stringify({ kind, title: tEl.value.trim(), body: bEl.value.trim(), lang: currentLang, nation: currentNation });
+    const opt = () => ({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body });
+    let r = await fetch(`${API}/ai/write`, opt());
+    if (r.status === 401 && await refreshToken()) r = await fetch(`${API}/ai/write`, opt());
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const why = j.error === 'daily_limit' ? `오늘 AI 글쓰기를 다 썼어요 (하루 ${j.limit || ''}번). 내일 다시 써 주세요.`
+        : j.error === 'ai_not_configured' ? 'AI 글쓰기 설정이 아직 안 됐어요 (관리자: Workers AI 연결 필요).'
+        : r.status === 401 ? '로그인이 만료됐어요. 다시 로그인해 주세요.'
+        : 'AI 글쓰기에 실패했어요: ' + (j.message || j.error || r.status);
+      throw new Error(why);
+    }
+    if (j.title) tEl.value = String(j.title).slice(0, 50);
+    if (j.body) bEl.value = String(j.body).slice(0, 5000);
+    msg.style.color = 'var(--green)';
+    msg.textContent = `완성! 마음에 안 들면 직접 고치거나 다시 눌러 주세요.${j.left != null ? ` (오늘 남은 횟수 ${j.left}번)` : ''}`;
+  } catch (e) {
+    msg.style.color = 'var(--red)'; msg.textContent = e.message;
+  }
+  btn.disabled = false; btn.textContent = '✨ AI 글쓰기 (무료) — 대충 써도 알아서 채워줘요';
 }
 
 function addImage() { document.getElementById('imgInput').click(); }
@@ -1264,8 +1318,8 @@ async function submitPost() {
   formData.append('lang_code', currentLang);
   formData.append('title', title);
   formData.append('body', document.getElementById('regBody').value);
-  formData.append('price', document.getElementById('regPrice').value);
-  formData.append('currency', document.getElementById('regCurrency').value);
+  formData.append('price', cat === 4 ? '' : document.getElementById('regPrice').value);
+  formData.append('currency', cat === 4 ? '' : document.getElementById('regCurrency').value);
   formData.append('address', document.getElementById('regAddress').value);
   formData.append('phone', document.getElementById('regPhone').value);
   formData.append('opening_hours', document.getElementById('regHours').value);
