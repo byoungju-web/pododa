@@ -416,6 +416,7 @@ a{text-decoration:none;color:inherit}
       <button onclick="getMyLocation()" style="margin-top:6px;padding:6px 12px;border:1px solid var(--lgray);border-radius:6px;font-size:12px;cursor:pointer;background:var(--white)">📍 현재 위치</button>
       <button id="regMapChk" class="hide" onclick="regCheckMap()" style="margin-top:6px;padding:6px 12px;border:1px solid var(--pri);border-radius:6px;font-size:12px;cursor:pointer;background:var(--white);color:var(--pri)">🗺️ 지도에 나오는지 확인</button>
       <div id="regMapMsg" style="font-size:12px;margin-top:6px"></div>
+      <div class="d-map hide" id="regMapPreview" style="height:170px"></div>
       <p id="regLocNote" style="font-size:11.5px;color:var(--gray);margin-top:6px;line-height:1.5">'📍 현재 위치'를 누른 경우에만 글 위치가 약 1km 범위로 저장되고, 다른 사람에게는 좌표가 아닌 거리(km)만 보여요.</p>
     </div>
     <div class="form-group hide" id="regPhoneGroup">
@@ -1326,6 +1327,10 @@ function onRegCatChange() {
   document.getElementById('regTplBox').classList.toggle('hide', !nearby);
   document.getElementById('regMapChk').classList.toggle('hide', !nearby);
   document.getElementById('regMapMsg').textContent = '';
+  document.getElementById('regMapPreview').classList.add('hide');
+  document.getElementById('regLocNote').textContent = nearby
+    ? "'📍 현재 위치'를 누르면 지금 있는 곳의 주소가 자동으로 들어가고 지도에 표시돼요. 이 주소는 글에 공개되니 가게·장소에서만 써 주세요. (주소를 찾으려고 위치를 OpenStreetMap에 보내요)"
+    : "'📍 현재 위치'를 누른 경우에만 글 위치가 약 1km 범위로 저장되고, 다른 사람에게는 좌표가 아닌 거리(km)만 보여요.";
   document.getElementById('regAddrLabel').textContent = nearby ? '주소 (적으면 상세 화면 지도에 표시돼요)' : '위치 / 주소';
   document.getElementById('regSubCatLabel').textContent = nature ? '어떤 글인가요?' : nearby ? '어떤 곳인가요?' : '세부 카테고리';
   document.querySelector('#regPage .rtitle').textContent = nature ? '🌿 이야기 나누기' : nearby ? '📍 내주변 소개하기' : '무료 등록';
@@ -1368,7 +1373,7 @@ async function regCheckMap() {
   m.style.color = 'var(--gray)'; m.textContent = '🗺️ 확인 중…';
   try {
     const hit = await pdGeocode(addr, currentNation);
-    if (hit) { m.style.color = 'var(--green)'; m.textContent = '✅ 지도에 표시돼요.'; }
+    if (hit) { m.style.color = 'var(--green)'; m.textContent = '✅ 지도에 표시돼요.'; regShowPreview(hit.lat, hit.lng); }
     else { m.style.color = 'var(--orange)'; m.textContent = '⚠️ 지도에서 못 찾았어요. 도로명 주소(예: OO시 OO로 123)로 적어 보세요. 길찾기 버튼은 그대로 쓸 수 있어요.'; }
   } catch (e) { m.style.color = 'var(--red)'; m.textContent = '확인하지 못했어요. 잠시 후 다시 눌러 주세요.'; }
 }
@@ -1986,13 +1991,77 @@ setTimeout(() => notiCheck(false), 1500);
 function reportPost() { if(confirm('이 게시글을 신고하시겠습니까?')) alert('신고가 접수되었습니다'); }
 // 글 등록의 '📍 현재 위치' — 이 글의 위치로만 쓴다 (내주변 검색 위치와 별개)
 function getMyLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      regLat = pos.coords.latitude;
-      regLng = pos.coords.longitude;
-      alert('글 위치를 넣었습니다 (약 1km 범위로만 저장돼요)');
-    }, () => alert('위치를 가져올 수 없습니다'));
+  if (!navigator.geolocation) { alert('이 기기에서는 위치를 쓸 수 없어요'); return; }
+  const cat = parseInt(document.getElementById('regCat').value);
+  const m = document.getElementById('regMapMsg');
+  if (cat === 3) { m.style.color = 'var(--gray)'; m.textContent = '📍 현재 위치 확인 중…'; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    regLat = pos.coords.latitude;
+    regLng = pos.coords.longitude;
+    // v32: 내주변 글만 — 현재 위치로 주소 자동 입력 + 지도 미리보기
+    if (cat === 3) regFillAddressFromLoc(regLat, regLng);
+    else alert('글 위치를 넣었습니다 (약 1km 범위로만 저장돼요)');
+  }, () => {
+    if (cat === 3) { m.style.color = 'var(--red)'; m.textContent = '위치를 가져올 수 없어요. 휴대폰 위치(GPS)와 브라우저 위치 권한을 켜 주세요.'; }
+    else alert('위치를 가져올 수 없습니다');
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+}
+
+// ===== v32 내주변: 현재 위치 → 주소 자동 입력 (OpenStreetMap Nominatim 무료) =====
+const pdWait = ms => new Promise(r => setTimeout(r, ms));
+function pdComposeAddr(a, nation) {
+  if (!a) return [];
+  const uniq = arr => arr.filter((v, i) => v && arr.indexOf(v) === i);
+  const area = a.road || a.neighbourhood || a.quarter || a.suburb || a.village || a.hamlet || '';
+  if (nation === 'KR') {
+    const head = uniq([a.province || a.state, a.city || a.town, a.county, a.borough || a.city_district]);
+    const full = head.concat(uniq([area, a.house_number])).join(' ');
+    const noNum = head.concat([area]).filter(Boolean).join(' ');
+    return uniq([full, noNum]);
   }
+  const street = [a.house_number, a.road].filter(Boolean).join(' ') || area;
+  const city = a.city || a.town || a.village || a.county || '';
+  return uniq([[street, city, a.state].filter(Boolean).join(', '), [area, city, a.state].filter(Boolean).join(', ')]);
+}
+async function regFillAddressFromLoc(lat, lng) {
+  const m = document.getElementById('regMapMsg');
+  m.style.color = 'var(--gray)'; m.textContent = '📍 주소 찾는 중…';
+  regShowPreview(lat, lng);
+  try {
+    const q = new URLSearchParams({ lat: String(lat), lon: String(lng), format: 'json', zoom: '18', addressdetails: '1', 'accept-language': 'ko' });
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?' + q.toString());
+    if (!r.ok) throw new Error('rev');
+    const j = await r.json();
+    const nation = (j.address && j.address.country_code ? j.address.country_code.toUpperCase() : currentNation);
+    const cands = pdComposeAddr(j.address, nation);
+    if (j.display_name) cands.push(j.display_name);
+    if (!cands.length) throw new Error('none');
+    // 다른 사람이 상세 화면에서 이 주소로 지도를 찾을 수 있는지 미리 확인 (무료 서버 규칙: 1초에 1번)
+    let chosen = '';
+    for (const c of cands) {
+      await pdWait(1100);
+      try { if (await pdGeocode(c, currentNation)) { chosen = c; break; } } catch (e) {}
+    }
+    document.getElementById('regAddress').value = chosen || cands[0];
+    if (chosen) { m.style.color = 'var(--green)'; m.textContent = '✅ 현재 위치 주소를 넣었어요. 상세 화면 지도에 표시돼요. 건물 이름·층수는 직접 덧붙여 주세요.'; }
+    else { m.style.color = 'var(--orange)'; m.textContent = '⚠️ 주소는 넣었지만 지도 검색에서 못 찾을 수 있어요. 도로명 주소로 고쳐 주세요. 길찾기는 그대로 쓸 수 있어요.'; }
+  } catch (e) {
+    m.style.color = 'var(--red)'; m.textContent = '주소를 찾지 못했어요. 주소를 직접 적어 주세요.';
+  }
+}
+let pdRegMap = null;
+async function regShowPreview(lat, lng) {
+  const el = document.getElementById('regMapPreview');
+  try {
+    await pdLoadLeaflet();
+    el.classList.remove('hide');
+    if (pdRegMap) { try { pdRegMap.remove(); } catch (e) {} pdRegMap = null; }
+    el.innerHTML = '';
+    pdRegMap = L.map('regMapPreview', { zoomControl: false }).setView([lat, lng], 17);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(pdRegMap);
+    L.marker([lat, lng]).addTo(pdRegMap);
+    setTimeout(() => { try { pdRegMap && pdRegMap.invalidateSize(); } catch (e) {} }, 200);
+  } catch (e) { el.classList.add('hide'); }
 }
 
 // ===== 내주변 위치 (동의 → 위치 → 거리 검색) =====
