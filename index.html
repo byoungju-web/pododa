@@ -1069,14 +1069,15 @@ async function loadPosts() {
   }
 }
 
-function renderPostCard(p) {
+function renderPostCard(p, showNationFlag) {
   const img = p.images ? JSON.parse(p.images)[0] : '';
   const statusClass = p.sale_status === 1 ? 'status-reserved' : p.sale_status === 2 ? 'status-done' : '';
   const statusText = p.sale_status === 1 ? '예약중' : p.sale_status === 2 ? '거래완료' : '';
+  const nationFlag = showNationFlag && p.nation_code ? getNationFlag(p.nation_code) : '';
   return `<div class="post-card" onclick="openDetail(${p.id})">
     <img class="thumb" src="${img || ''}" onerror="this.style.background='var(--lgray)';this.src=''">
     <div class="info">
-      <div class="title">${statusText ? `<span class="status-badge ${statusClass}">${statusText}</span> ` : ''}<span data-cf-noui="1">${esc(p.title)}</span></div>
+      <div class="title">${statusText ? `<span class="status-badge ${statusClass}">${statusText}</span> ` : ''}<span data-cf-noui="1">${esc(p.title)}</span>${nationFlag ? `<span onclick="event.stopPropagation();goNation('${p.nation_code}')" style="float:right;cursor:pointer;font-size:18px" title="${p.nation_code}">${nationFlag}</span>` : ''}</div>
       <div class="price">${p.price ? p.price + ' ' + (p.currency||'') : '가격 없음'}</div>
       <div style="font-size:12px;color:var(--gray)" data-cf-noui="1">${esc(p.address || '')}</div>
       <div class="meta">
@@ -1087,6 +1088,16 @@ function renderPostCard(p) {
       </div>
     </div>
   </div>`;
+}
+function getNationFlag(code) {
+  const n = allNations.find(x => x.code === code);
+  return n ? n.flag : '';
+}
+function goNation(code) {
+  const n = allNations.find(x => x.code === code);
+  if (!n) return;
+  closeDoc('myListPage');
+  selectNation(n.code, n.flag);
 }
 
 // ===== 상세 페이지 =====
@@ -1450,7 +1461,7 @@ function showNationModal() {
   el.innerHTML =
     '<div class="nation-section-title">⭐ 주요 국가</div>' +
     '<div class="nation-list">' + renderNationItems(mainNations) + '</div>' +
-    '<div class="nation-section-title">🌐 전체 국가</div>' +
+    '<div style="height:8px"></div>' +
     '<div class="nation-list">' + renderNationItems(otherNations) + '</div>';
   document.getElementById('nationModal').classList.add('show');
 }
@@ -1671,7 +1682,7 @@ async function openMyList(kind, title, emptyText) {
     if (!r.ok) throw new Error(j.message || j.error || r.status);
     const posts = j.posts || [];
     if (kind === 'posts') document.getElementById('myPosts').textContent = posts.length;
-    body.innerHTML = posts.length ? posts.map(renderPostCard).join('')
+    body.innerHTML = posts.length ? posts.map(p => renderPostCard(p, kind === 'posts')).join('')
       : `<div class="empty"><div class="empty-icon">📭</div>${emptyText}</div>`;
   } catch (e) {
     body.innerHTML = `<div class="empty">목록을 불러오지 못했어요: ${esc(String(e.message))}</div>`;
