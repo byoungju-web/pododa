@@ -56,8 +56,9 @@ a{text-decoration:none;color:inherit}
 .nav-item.active{color:var(--pri)}
 .nav-item .nav-icon{font-size:22px}
 
-/* 글쓰기 FAB */
-.fab{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:52px;height:52px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:99;display:flex;align-items:center;justify-content:center}
+/* 글쓰기 FAB (하단 탭 가운데) */
+.fab-wrap{position:relative;flex:1;display:flex;align-items:center;justify-content:center}
+.fab{position:absolute;bottom:8px;width:48px;height:48px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:26px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:101;display:flex;align-items:center;justify-content:center}
 
 /* 화면(페이지) */
 .page{display:none;min-height:100vh}
@@ -309,14 +310,11 @@ a{text-decoration:none;color:inherit}
   </div>
 </div>
 
-<!-- ===== 글쓰기 FAB ===== -->
-<button class="fab" onclick="openRegister()">＋</button>
-
 <!-- ===== 하단 네비게이션 ===== -->
 <div class="bottom-nav">
   <div class="nav-item active" onclick="showPage('feed')"><div class="nav-icon">🏠</div>홈</div>
   <div class="nav-item" onclick="openChatList()"><div class="nav-icon">💬</div>채팅</div>
-  <div class="nav-item" onclick="openRegister()"><div class="nav-icon">📝</div>등록</div>
+  <div class="fab-wrap"><button class="fab" onclick="openRegister()">＋</button></div>
   <div class="nav-item" onclick="showPage('my')"><div class="nav-icon">👤</div>MY</div>
 </div>
 
@@ -1073,9 +1071,9 @@ function renderPostCard(p, showNationFlag) {
   const img = p.images ? JSON.parse(p.images)[0] : '';
   const statusClass = p.sale_status === 1 ? 'status-reserved' : p.sale_status === 2 ? 'status-done' : '';
   const statusText = p.sale_status === 1 ? '예약중' : p.sale_status === 2 ? '거래완료' : '';
-  const nationFlag = showNationFlag && p.nation_code ? getNationFlag(p.nation_code) : '';
+  const nationFlag = showNationFlag && p.nation_code && p.nation_code !== currentNation ? getNationFlag(p.nation_code) : '';
   return `<div class="post-card" onclick="openDetail(${p.id})">
-    <img class="thumb" src="${img || ''}" onerror="this.style.background='var(--lgray)';this.src=''">
+    <img class="thumb" src="${img || ''}" loading="lazy" onerror="this.style.background='var(--lgray)';this.src=''">
     <div class="info">
       <div class="title">${statusText ? `<span class="status-badge ${statusClass}">${statusText}</span> ` : ''}<span data-cf-noui="1">${esc(p.title)}</span>${nationFlag ? `<span onclick="event.stopPropagation();goNation('${p.nation_code}')" style="float:right;cursor:pointer;font-size:18px" title="${p.nation_code}">${nationFlag}</span>` : ''}</div>
       <div class="price">${p.price ? p.price + ' ' + (p.currency||'') : '가격 없음'}</div>
@@ -1111,7 +1109,7 @@ async function openDetail(postId) {
     const imgs = p.images ? JSON.parse(p.images) : [];
     const imgEl = document.getElementById('detailImages');
     if (imgs.length > 0) {
-      imgEl.innerHTML = `<div class="img-track">${imgs.map(src=>`<div class="img-slide"><img src="${src}"></div>`).join('')}</div>${imgs.length>1?`<div class="img-dots">${imgs.map((_,i)=>`<div class="dot ${i===0?'active':''}" onclick="goSlide(${i})"></div>`).join('')}</div>`:''}`;
+      imgEl.innerHTML = `<div class="img-track">${imgs.map((src,i)=>`<div class="img-slide"><img src="${src}" decoding="async" ${i>0?'loading="lazy"':''}></div>`).join('')}</div>${imgs.length>1?`<div class="img-dots">${imgs.map((_,i)=>`<div class="dot ${i===0?'active':''}" onclick="goSlide(${i})"></div>`).join('')}</div>`:''}`;
       if (imgs.length > 1) initSwipe(imgEl, imgs.length);
     } else {
       imgEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray)">사진 없음</div>';
@@ -1484,6 +1482,7 @@ function selectNation(code, flag) {
   updateNationUI();
   closeNationModal();
   page = 1;
+  showPage('feed');
   loadPosts();
 }
 
@@ -1495,6 +1494,8 @@ function updateNationUI() {
 
 // ===== 페이지 전환 =====
 function showPage(name) {
+  // 열려 있는 오버레이 페이지 모두 닫기
+  document.querySelectorAll('.detail-page.show, .lbs-page.show, .search-page.show').forEach(el => el.classList.remove('show'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (name === 'feed') {
@@ -1502,7 +1503,7 @@ function showPage(name) {
     document.querySelectorAll('.nav-item')[0].classList.add('active');
   } else if (name === 'my') {
     document.getElementById('pageMy').classList.add('active');
-    document.querySelectorAll('.nav-item')[3].classList.add('active');
+    document.querySelectorAll('.nav-item')[2].classList.add('active');
     updateProfile();
   }
 }
