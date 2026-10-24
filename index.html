@@ -155,6 +155,9 @@ a{text-decoration:none;color:inherit}
 .nation-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .nation-list .n-item{padding:10px;border:1px solid var(--lgray);border-radius:8px;text-align:center;font-size:13px;cursor:pointer;transition:.2s}
 .nation-list .n-item.active{border-color:var(--pri);background:rgba(124,58,237,.1);color:var(--pri);font-weight:600}
+.nation-search{width:100%;padding:10px 12px;border:1px solid var(--lgray);border-radius:8px;font-size:14px;margin-bottom:12px;box-sizing:border-box;outline:none}
+.nation-search:focus{border-color:var(--pri)}
+.nation-section-title{font-size:13px;font-weight:600;color:#888;margin:12px 0 6px;padding-left:2px}
 
 /* 검색 */
 .search-page{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--white);z-index:195;display:none;overflow-y:auto}
@@ -467,7 +470,8 @@ a{text-decoration:none;color:inherit}
 <div class="modal-overlay" id="nationModal" onclick="if(event.target===this)closeNationModal()">
   <div class="modal-content">
     <h3>🌍 국가 선택</h3>
-    <div class="nation-list" id="nationList"></div>
+    <input type="text" class="nation-search" id="nationSearchInput" placeholder="🔍 국가 검색..." oninput="filterNations(this.value)">
+    <div id="nationList"></div>
   </div>
 </div>
 
@@ -838,7 +842,8 @@ let currentChatRoom = null;
 let page = 1;
 
 // ===== 국가 목록 =====
-const nations = [
+// 주요 국가 (상단 고정)
+const mainNations = [
   {code:'KR',flag:'🇰🇷',name:'한국'},{code:'US',flag:'🇺🇸',name:'USA'},
   {code:'JP',flag:'🇯🇵',name:'日本'},{code:'CN',flag:'🇨🇳',name:'中国'},
   {code:'TH',flag:'🇹🇭',name:'ไทย'},{code:'VN',flag:'🇻🇳',name:'Việt Nam'},
@@ -852,6 +857,111 @@ const nations = [
   {code:'AU',flag:'🇦🇺',name:'Australia'},{code:'CA',flag:'🇨🇦',name:'Canada'},
   {code:'AE',flag:'🇦🇪',name:'UAE'},{code:'SA',flag:'🇸🇦',name:'السعودية'}
 ];
+const mainCodes = new Set(mainNations.map(n=>n.code));
+
+// 전체 국가 (제재 대상 KP, IR, SY, CU 제외)
+const allNations = [
+  {code:'AF',flag:'🇦🇫',name:'Afghanistan'},{code:'AL',flag:'🇦🇱',name:'Shqipëria'},
+  {code:'DZ',flag:'🇩🇿',name:'الجزائر'},{code:'AD',flag:'🇦🇩',name:'Andorra'},
+  {code:'AO',flag:'🇦🇴',name:'Angola'},{code:'AG',flag:'🇦🇬',name:'Antigua & Barbuda'},
+  {code:'AR',flag:'🇦🇷',name:'Argentina'},{code:'AM',flag:'🇦🇲',name:'Հայաստան'},
+  {code:'AU',flag:'🇦🇺',name:'Australia'},{code:'AT',flag:'🇦🇹',name:'Österreich'},
+  {code:'AZ',flag:'🇦🇿',name:'Azərbaycan'},{code:'BS',flag:'🇧🇸',name:'Bahamas'},
+  {code:'BH',flag:'🇧🇭',name:'البحرين'},{code:'BD',flag:'🇧🇩',name:'বাংলাদেশ'},
+  {code:'BB',flag:'🇧🇧',name:'Barbados'},{code:'BY',flag:'🇧🇾',name:'Беларусь'},
+  {code:'BE',flag:'🇧🇪',name:'België'},{code:'BZ',flag:'🇧🇿',name:'Belize'},
+  {code:'BJ',flag:'🇧🇯',name:'Bénin'},{code:'BT',flag:'🇧🇹',name:'འབྲུག'},
+  {code:'BO',flag:'🇧🇴',name:'Bolivia'},{code:'BA',flag:'🇧🇦',name:'Bosna'},
+  {code:'BW',flag:'🇧🇼',name:'Botswana'},{code:'BR',flag:'🇧🇷',name:'Brasil'},
+  {code:'BN',flag:'🇧🇳',name:'Brunei'},{code:'BG',flag:'🇧🇬',name:'България'},
+  {code:'BF',flag:'🇧🇫',name:'Burkina Faso'},{code:'BI',flag:'🇧🇮',name:'Burundi'},
+  {code:'CV',flag:'🇨🇻',name:'Cabo Verde'},{code:'KH',flag:'🇰🇭',name:'កម្ពុជា'},
+  {code:'CM',flag:'🇨🇲',name:'Cameroun'},{code:'CA',flag:'🇨🇦',name:'Canada'},
+  {code:'CF',flag:'🇨🇫',name:'Centrafrique'},{code:'TD',flag:'🇹🇩',name:'Tchad'},
+  {code:'CL',flag:'🇨🇱',name:'Chile'},{code:'CN',flag:'🇨🇳',name:'中国'},
+  {code:'CO',flag:'🇨🇴',name:'Colombia'},{code:'KM',flag:'🇰🇲',name:'Comores'},
+  {code:'CG',flag:'🇨🇬',name:'Congo'},{code:'CD',flag:'🇨🇩',name:'Congo (RDC)'},
+  {code:'CR',flag:'🇨🇷',name:'Costa Rica'},{code:'CI',flag:'🇨🇮',name:"Côte d'Ivoire"},
+  {code:'HR',flag:'🇭🇷',name:'Hrvatska'},{code:'CY',flag:'🇨🇾',name:'Κύπρος'},
+  {code:'CZ',flag:'🇨🇿',name:'Česko'},{code:'DK',flag:'🇩🇰',name:'Danmark'},
+  {code:'DJ',flag:'🇩🇯',name:'Djibouti'},{code:'DM',flag:'🇩🇲',name:'Dominica'},
+  {code:'DO',flag:'🇩🇴',name:'Dominicana'},{code:'EC',flag:'🇪🇨',name:'Ecuador'},
+  {code:'EG',flag:'🇪🇬',name:'مصر'},{code:'SV',flag:'🇸🇻',name:'El Salvador'},
+  {code:'GQ',flag:'🇬🇶',name:'Guinea Ecuatorial'},{code:'ER',flag:'🇪🇷',name:'ኤርትራ'},
+  {code:'EE',flag:'🇪🇪',name:'Eesti'},{code:'SZ',flag:'🇸🇿',name:'Eswatini'},
+  {code:'ET',flag:'🇪🇹',name:'ኢትዮጵያ'},{code:'FJ',flag:'🇫🇯',name:'Fiji'},
+  {code:'FI',flag:'🇫🇮',name:'Suomi'},{code:'FR',flag:'🇫🇷',name:'France'},
+  {code:'GA',flag:'🇬🇦',name:'Gabon'},{code:'GM',flag:'🇬🇲',name:'Gambia'},
+  {code:'GE',flag:'🇬🇪',name:'საქართველო'},{code:'DE',flag:'🇩🇪',name:'Deutschland'},
+  {code:'GH',flag:'🇬🇭',name:'Ghana'},{code:'GR',flag:'🇬🇷',name:'Ελλάδα'},
+  {code:'GD',flag:'🇬🇩',name:'Grenada'},{code:'GT',flag:'🇬🇹',name:'Guatemala'},
+  {code:'GN',flag:'🇬🇳',name:'Guinée'},{code:'GW',flag:'🇬🇼',name:'Guiné-Bissau'},
+  {code:'GY',flag:'🇬🇾',name:'Guyana'},{code:'HT',flag:'🇭🇹',name:'Haïti'},
+  {code:'HN',flag:'🇭🇳',name:'Honduras'},{code:'HU',flag:'🇭🇺',name:'Magyarország'},
+  {code:'IS',flag:'🇮🇸',name:'Ísland'},{code:'IN',flag:'🇮🇳',name:'India'},
+  {code:'ID',flag:'🇮🇩',name:'Indonesia'},{code:'IQ',flag:'🇮🇶',name:'العراق'},
+  {code:'IE',flag:'🇮🇪',name:'Ireland'},{code:'IL',flag:'🇮🇱',name:'ישראל'},
+  {code:'IT',flag:'🇮🇹',name:'Italia'},{code:'JM',flag:'🇯🇲',name:'Jamaica'},
+  {code:'JP',flag:'🇯🇵',name:'日本'},{code:'JO',flag:'🇯🇴',name:'الأردن'},
+  {code:'KZ',flag:'🇰🇿',name:'Қазақстан'},{code:'KE',flag:'🇰🇪',name:'Kenya'},
+  {code:'KI',flag:'🇰🇮',name:'Kiribati'},{code:'KR',flag:'🇰🇷',name:'한국'},
+  {code:'KW',flag:'🇰🇼',name:'الكويت'},{code:'KG',flag:'🇰🇬',name:'Кыргызстан'},
+  {code:'LA',flag:'🇱🇦',name:'ລາວ'},{code:'LV',flag:'🇱🇻',name:'Latvija'},
+  {code:'LB',flag:'🇱🇧',name:'لبنان'},{code:'LS',flag:'🇱🇸',name:'Lesotho'},
+  {code:'LR',flag:'🇱🇷',name:'Liberia'},{code:'LY',flag:'🇱🇾',name:'ليبيا'},
+  {code:'LI',flag:'🇱🇮',name:'Liechtenstein'},{code:'LT',flag:'🇱🇹',name:'Lietuva'},
+  {code:'LU',flag:'🇱🇺',name:'Luxembourg'},{code:'MG',flag:'🇲🇬',name:'Madagasikara'},
+  {code:'MW',flag:'🇲🇼',name:'Malawi'},{code:'MY',flag:'🇲🇾',name:'Malaysia'},
+  {code:'MV',flag:'🇲🇻',name:'Maldives'},{code:'ML',flag:'🇲🇱',name:'Mali'},
+  {code:'MT',flag:'🇲🇹',name:'Malta'},{code:'MH',flag:'🇲🇭',name:'Marshall Islands'},
+  {code:'MR',flag:'🇲🇷',name:'موريتانيا'},{code:'MU',flag:'🇲🇺',name:'Mauritius'},
+  {code:'MX',flag:'🇲🇽',name:'México'},{code:'FM',flag:'🇫🇲',name:'Micronesia'},
+  {code:'MD',flag:'🇲🇩',name:'Moldova'},{code:'MC',flag:'🇲🇨',name:'Monaco'},
+  {code:'MN',flag:'🇲🇳',name:'Монгол'},{code:'ME',flag:'🇲🇪',name:'Crna Gora'},
+  {code:'MA',flag:'🇲🇦',name:'المغرب'},{code:'MZ',flag:'🇲🇿',name:'Moçambique'},
+  {code:'MM',flag:'🇲🇲',name:'မြန်မာ'},{code:'NA',flag:'🇳🇦',name:'Namibia'},
+  {code:'NR',flag:'🇳🇷',name:'Nauru'},{code:'NP',flag:'🇳🇵',name:'नेपाल'},
+  {code:'NL',flag:'🇳🇱',name:'Nederland'},{code:'NZ',flag:'🇳🇿',name:'New Zealand'},
+  {code:'NI',flag:'🇳🇮',name:'Nicaragua'},{code:'NE',flag:'🇳🇪',name:'Niger'},
+  {code:'NG',flag:'🇳🇬',name:'Nigeria'},{code:'MK',flag:'🇲🇰',name:'Македонија'},
+  {code:'NO',flag:'🇳🇴',name:'Norge'},{code:'OM',flag:'🇴🇲',name:'عُمان'},
+  {code:'PK',flag:'🇵🇰',name:'Pakistan'},{code:'PW',flag:'🇵🇼',name:'Palau'},
+  {code:'PS',flag:'🇵🇸',name:'فلسطين'},{code:'PA',flag:'🇵🇦',name:'Panamá'},
+  {code:'PG',flag:'🇵🇬',name:'Papua New Guinea'},{code:'PY',flag:'🇵🇾',name:'Paraguay'},
+  {code:'PE',flag:'🇵🇪',name:'Perú'},{code:'PH',flag:'🇵🇭',name:'Philippines'},
+  {code:'PL',flag:'🇵🇱',name:'Polska'},{code:'PT',flag:'🇵🇹',name:'Portugal'},
+  {code:'QA',flag:'🇶🇦',name:'قطر'},{code:'RO',flag:'🇷🇴',name:'România'},
+  {code:'RU',flag:'🇷🇺',name:'Россия'},{code:'RW',flag:'🇷🇼',name:'Rwanda'},
+  {code:'KN',flag:'🇰🇳',name:'St. Kitts & Nevis'},{code:'LC',flag:'🇱🇨',name:'St. Lucia'},
+  {code:'VC',flag:'🇻🇨',name:'St. Vincent'},{code:'WS',flag:'🇼🇸',name:'Samoa'},
+  {code:'SM',flag:'🇸🇲',name:'San Marino'},{code:'ST',flag:'🇸🇹',name:'São Tomé'},
+  {code:'SA',flag:'🇸🇦',name:'السعودية'},{code:'SN',flag:'🇸🇳',name:'Sénégal'},
+  {code:'RS',flag:'🇷🇸',name:'Србија'},{code:'SC',flag:'🇸🇨',name:'Seychelles'},
+  {code:'SL',flag:'🇸🇱',name:'Sierra Leone'},{code:'SG',flag:'🇸🇬',name:'Singapore'},
+  {code:'SK',flag:'🇸🇰',name:'Slovensko'},{code:'SI',flag:'🇸🇮',name:'Slovenija'},
+  {code:'SB',flag:'🇸🇧',name:'Solomon Islands'},{code:'SO',flag:'🇸🇴',name:'Soomaaliya'},
+  {code:'ZA',flag:'🇿🇦',name:'South Africa'},{code:'SS',flag:'🇸🇸',name:'South Sudan'},
+  {code:'ES',flag:'🇪🇸',name:'España'},{code:'LK',flag:'🇱🇰',name:'ශ්‍රී ලංකා'},
+  {code:'SD',flag:'🇸🇩',name:'السودان'},{code:'SR',flag:'🇸🇷',name:'Suriname'},
+  {code:'SE',flag:'🇸🇪',name:'Sverige'},{code:'CH',flag:'🇨🇭',name:'Schweiz'},
+  {code:'TW',flag:'🇹🇼',name:'臺灣'},{code:'TJ',flag:'🇹🇯',name:'Тоҷикистон'},
+  {code:'TZ',flag:'🇹🇿',name:'Tanzania'},{code:'TH',flag:'🇹🇭',name:'ไทย'},
+  {code:'TL',flag:'🇹🇱',name:'Timor-Leste'},{code:'TG',flag:'🇹🇬',name:'Togo'},
+  {code:'TO',flag:'🇹🇴',name:'Tonga'},{code:'TT',flag:'🇹🇹',name:'Trinidad & Tobago'},
+  {code:'TN',flag:'🇹🇳',name:'تونس'},{code:'TR',flag:'🇹🇷',name:'Türkiye'},
+  {code:'TM',flag:'🇹🇲',name:'Türkmenistan'},{code:'TV',flag:'🇹🇻',name:'Tuvalu'},
+  {code:'UG',flag:'🇺🇬',name:'Uganda'},{code:'UA',flag:'🇺🇦',name:'Україна'},
+  {code:'AE',flag:'🇦🇪',name:'UAE'},{code:'GB',flag:'🇬🇧',name:'UK'},
+  {code:'US',flag:'🇺🇸',name:'USA'},{code:'UY',flag:'🇺🇾',name:'Uruguay'},
+  {code:'UZ',flag:'🇺🇿',name:'Oʻzbekiston'},{code:'VU',flag:'🇻🇺',name:'Vanuatu'},
+  {code:'VA',flag:'🇻🇦',name:'Vaticano'},{code:'VE',flag:'🇻🇪',name:'Venezuela'},
+  {code:'VN',flag:'🇻🇳',name:'Việt Nam'},{code:'YE',flag:'🇾🇪',name:'اليمن'},
+  {code:'ZM',flag:'🇿🇲',name:'Zambia'},{code:'ZW',flag:'🇿🇼',name:'Zimbabwe'},
+  {code:'HK',flag:'🇭🇰',name:'香港'},{code:'MO',flag:'🇲🇴',name:'澳門'},
+  {code:'PR',flag:'🇵🇷',name:'Puerto Rico'},{code:'GU',flag:'🇬🇺',name:'Guam'}
+];
+// nations 호환용 (기존 코드에서 nations 참조하는 곳 대응)
+const nations = mainNations;
 
 // ===== 세부 카테고리 =====
 const subCats = {
@@ -1327,12 +1437,33 @@ async function doSearch() {
 }
 
 // ===== 국가 선택 =====
-function showNationModal() {
-  const el = document.getElementById('nationList');
-  el.innerHTML = nations.map(n =>
+function renderNationItems(list) {
+  return list.map(n =>
     `<div class="n-item ${n.code === currentNation ? 'active' : ''}" onclick="selectNation('${n.code}','${n.flag}')">${n.flag}<br>${n.name}</div>`
   ).join('');
+}
+function showNationModal() {
+  const si = document.getElementById('nationSearchInput');
+  si.value = '';
+  const el = document.getElementById('nationList');
+  const otherNations = allNations.filter(n => !mainCodes.has(n.code));
+  el.innerHTML =
+    '<div class="nation-section-title">⭐ 주요 국가</div>' +
+    '<div class="nation-list">' + renderNationItems(mainNations) + '</div>' +
+    '<div class="nation-section-title">🌐 전체 국가</div>' +
+    '<div class="nation-list">' + renderNationItems(otherNations) + '</div>';
   document.getElementById('nationModal').classList.add('show');
+}
+function filterNations(q) {
+  const el = document.getElementById('nationList');
+  q = q.trim().toLowerCase();
+  if (!q) { showNationModal(); document.getElementById('nationModal').classList.add('show'); return; }
+  const matched = allNations.filter(n =>
+    n.name.toLowerCase().includes(q) || n.code.toLowerCase().includes(q)
+  );
+  el.innerHTML = matched.length
+    ? '<div class="nation-list">' + renderNationItems(matched) + '</div>'
+    : '<div style="text-align:center;padding:20px;color:#999">검색 결과가 없습니다</div>';
 }
 function closeNationModal() { document.getElementById('nationModal').classList.remove('show'); }
 
