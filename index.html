@@ -236,7 +236,7 @@ a{text-decoration:none;color:inherit}
 
 <!-- ===== 정렬바 ===== -->
 <div class="sort-bar">
-  <select id="sortSelect" onchange="loadPosts()">
+  <select id="sortSelect" onchange="if(!document.getElementById('pageFeed').classList.contains('active'))showPage('feed');loadPosts()">
     <option value="recent">최신순</option>
     <option value="popular">인기순</option>
     <option value="price_low">가격 낮은순</option>
@@ -312,7 +312,7 @@ a{text-decoration:none;color:inherit}
 
 <!-- ===== 하단 네비게이션 ===== -->
 <div class="bottom-nav">
-  <div class="nav-item active" onclick="showPage('feed')"><div class="nav-icon">🏠</div>홈</div>
+  <div class="nav-item active" onclick="goHome()"><div class="nav-icon">🏠</div>홈</div>
   <div class="nav-item" onclick="openChatList()"><div class="nav-icon">💬</div>채팅</div>
   <div class="fab-wrap"><button class="fab" onclick="openRegister()">＋</button></div>
   <div class="nav-item" onclick="showPage('my')"><div class="nav-icon">👤</div>MY</div>
@@ -984,6 +984,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // ===== 탭 전환 =====
 function switchTab(idx) {
+  // MY 화면에서 상단 탭을 눌러도 목록 화면으로 넘어가게
+  if (!document.getElementById('pageFeed').classList.contains('active')) showPage('feed');
   currentTab = idx;
   currentSubCat = -1;
   page = 1;
@@ -1002,6 +1004,7 @@ function applyTabRadius() {
   if (currentTab !== 4) sel.value = tabRadius[currentTab] || '0';
 }
 function onRadiusChange() {
+  if (!document.getElementById('pageFeed').classList.contains('active')) showPage('feed');
   tabRadius[currentTab] = document.getElementById('radiusSelect').value;
   try { localStorage.setItem('pd_tab_radius', JSON.stringify(tabRadius)); } catch (e) {}
   page = 1;
@@ -1020,6 +1023,7 @@ function renderSubCats() {
 }
 
 function selectSubCat(idx) {
+  if (!document.getElementById('pageFeed').classList.contains('active')) showPage('feed');
   currentSubCat = idx;
   page = 1;
   renderSubCats();
@@ -1505,7 +1509,33 @@ function showPage(name) {
     document.getElementById('pageMy').classList.add('active');
     document.querySelectorAll('.nav-item')[2].classList.add('active');
     updateProfile();
+    pdRefreshMyCount();
   }
+}
+// MY 화면 게시글 수: 서버(GET /api/me 의 post_count)에서 바로 가져옴
+async function pdRefreshMyCount() {
+  if (!currentUser || !localStorage.getItem('pd_token')) return;
+  try {
+    let r = await fetch(`${API}/me`, { headers: authHeaders() });
+    if (r.status === 401 && await refreshToken()) r = await fetch(`${API}/me`, { headers: authHeaders() });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (j && j.post_count != null) {
+      document.getElementById('myPosts').textContent = j.post_count;
+      currentUser.post_count = j.post_count;
+      localStorage.setItem('pd_user', JSON.stringify(currentUser));
+    }
+  } catch (e) {}
+}
+// 하단 홈 버튼: 떠 있는 화면을 모두 닫고 첫 화면(시장 탭, 맨 위)으로
+function goHome() {
+  for (const [id, close] of PD_BACK_LAYERS) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('show')) { try { close(); } catch (e) { el.classList.remove('show'); } }
+  }
+  showPage('feed');
+  if (currentTab !== 0 || currentSubCat !== -1) switchTab(0);
+  window.scrollTo(0, 0);
 }
 
 // ===== 로그인 =====
@@ -2111,7 +2141,32 @@ const PD_BACK_LAYERS = [
   ['searchPage', () => closeSearch()]
 ];
 let pdExitArmed = false;
-function pdArmBack() { history.pushState({ pd: 1 }, ''); }
+// 뒤로가기 기록: 떠 있는 화면 수 + MY 화면 + 종료 확인용 1개 만큼 쌓아 둠
+// (화면이 열릴 때 = 사용자가 누른 직후에 쌓아야 크롬이 건너뛰지 않음)
+let pdDepth = 0, pdIgnorePop = 0;
+function pdWanted() {
+  let n = 1;
+  for (const [id] of PD_BACK_LAYERS) { const el = document.getElementById(id); if (el && el.classList.contains('show')) n++; }
+  if (!document.getElementById('pageFeed').classList.contains('active')) n++;
+  return n;
+}
+function pdSyncBack() {
+  const want = pdWanted();
+  if (pdDepth < want) {
+    while (pdDepth < want) { history.pushState({ pd: 1 }, ''); pdDepth++; }
+  } else if (pdDepth > want) {
+    // 화면 안의 ← 버튼으로 닫은 경우: 남은 기록을 정리
+    pdIgnorePop++;
+    history.go(-(pdDepth - want));
+    pdDepth = want;
+  }
+}
+function pdArmBack() { history.pushState({ pd: 1 }, ''); pdDepth++; }
+(function pdWatchLayers() {
+  const mo = new MutationObserver(() => { clearTimeout(pdWatchLayers._t); pdWatchLayers._t = setTimeout(pdSyncBack, 0); });
+  PD_BACK_LAYERS.forEach(([id]) => { const el = document.getElementById(id); if (el) mo.observe(el, { attributes: true, attributeFilter: ['class'] }); });
+  ['pageFeed', 'pageMy'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { attributes: true, attributeFilter: ['class'] }); });
+})();
 function pdToast(msg) {
   let t = document.getElementById('pdToast');
   if (!t) {
@@ -2124,12 +2179,14 @@ function pdToast(msg) {
   clearTimeout(t._h); t._h = setTimeout(() => { t.style.display = 'none'; }, 2000);
 }
 window.addEventListener('popstate', () => {
+  if (pdIgnorePop > 0) { pdIgnorePop--; return; }
+  pdDepth = Math.max(0, pdDepth - 1);
   for (const [id, close] of PD_BACK_LAYERS) {
     const el = document.getElementById(id);
-    if (el && el.classList.contains('show')) { close(); pdExitArmed = false; pdArmBack(); return; }
+    if (el && el.classList.contains('show')) { close(); pdExitArmed = false; return; }
   }
   if (!document.getElementById('pageFeed').classList.contains('active')) {
-    showPage('feed'); pdExitArmed = false; pdArmBack(); return;
+    showPage('feed'); pdExitArmed = false; return;
   }
   if (!pdExitArmed) {
     // 홈 화면: 한 번 더 누르면 종료
@@ -2140,7 +2197,9 @@ window.addEventListener('popstate', () => {
   }
   history.back();
 });
-window.addEventListener('load', () => { pdArmBack(); });
+window.addEventListener('load', () => { pdSyncBack(); });
+// 첫 터치 때 기록을 다시 맞춰 둠 (터치 없이 쌓인 기록은 크롬이 건너뛸 수 있음)
+document.addEventListener('click', () => { setTimeout(pdSyncBack, 0); }, true);
 // 주소로도 열림: pododa.kr/#lbs
 if (location.hash === '#lbs') setTimeout(openLbsTerms, 300);
 // v25: pododa.kr/#privacy · pododa.kr/#terms 로 개인정보처리방침·이용약관 바로 열기 (구글 로그인 설정에 쓰는 주소)
