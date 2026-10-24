@@ -375,7 +375,7 @@ a{text-decoration:none;color:inherit}
     </div>
     <div class="form-group" id="regSubCatGroup">
       <label id="regSubCatLabel">세부 카테고리</label>
-      <select id="regSubCat" onchange="if(parseInt(document.getElementById('regCat').value)===3)pdTplLabel()"></select>
+      <select id="regSubCat" onchange="if([2,3].includes(parseInt(document.getElementById('regCat').value)))pdTplLabel()"></select>
     </div>
     <div class="form-group">
       <label>사진 (최대 8장)</label>
@@ -426,6 +426,25 @@ a{text-decoration:none;color:inherit}
     <div class="form-group hide" id="regHoursGroup">
       <label>영업시간</label>
       <input type="text" id="regHours" placeholder="예: 09:00 ~ 22:00">
+    </div>
+    <!-- v33: 배달 정보 -->
+    <div class="form-group hide" id="regDeliveryGroup">
+      <label>🛵 배달 정보</label>
+      <input type="text" id="dlArea" placeholder="배달 가능 지역 (예: 대부도 전 지역, 2km 이내)" maxlength="100">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="dlMin" placeholder="최소 주문 금액 (예: 15,000원)" maxlength="40" style="flex:1;min-width:0">
+        <input type="text" id="dlFee" placeholder="배달비 (예: 3,000원)" maxlength="40" style="flex:1;min-width:0">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="dlTime" placeholder="예상 시간 (예: 30~40분)" maxlength="40" style="flex:1;min-width:0">
+        <select id="dlPickup" style="flex:1;min-width:0">
+          <option value="">포장 여부 선택</option>
+          <option value="포장 가능">포장 가능</option>
+          <option value="배달만">배달만</option>
+        </select>
+      </div>
+      <input type="text" id="dlPay" placeholder="결제 방법 (예: 카드·현금·계좌이체)" maxlength="60" style="margin-top:8px">
+      <input type="text" id="dlEvent" placeholder="이벤트·할인 (예: 리뷰 쓰면 음료 서비스)" maxlength="100" style="margin-top:8px">
     </div>
     <div class="form-group hide" id="regMoqGroup">
       <label>MOQ (최소주문수량)</label>
@@ -1155,18 +1174,26 @@ async function openDetail(postId) {
     const isNature = Number(p.category) === 4;
     document.getElementById('dPrice').textContent = isNature ? '' : (p.price ? `${p.price} ${p.currency || ''}` : '');
     // 자연: 가격제안 대신 대화하기만 / 내주변: 가격제안 대신 길찾기(주소 있을 때)
-    const isNearby = Number(p.category) === 3;
+    const isNearby = Number(p.category) === 3, isDeliv = Number(p.category) === 2;
+    const isPlace = isNearby || isDeliv; // v33: 배달도 내주변처럼
     const hasAddr = !!String(p.address || '').trim();
-    document.querySelector('#detailBottom .offer-btn').style.display = (isNature || isNearby) ? 'none' : '';
-    document.getElementById('dRouteBtn').style.display = (isNearby && hasAddr) ? '' : 'none';
-    document.querySelector('#detailBottom .chat-btn').textContent = isNature ? '💬 대화하기' : isNearby ? '💬 문의하기' : '💬 채팅하기';
-    pdShowMap(isNearby && hasAddr ? p : null);
+    document.querySelector('#detailBottom .offer-btn').style.display = (isNature || isPlace) ? 'none' : '';
+    document.getElementById('dRouteBtn').style.display = (isPlace && hasAddr) ? '' : 'none';
+    document.querySelector('#detailBottom .chat-btn').textContent = isNature ? '💬 대화하기' : isNearby ? '💬 문의하기' : isDeliv ? '💬 주문·문의' : '💬 채팅하기';
+    pdShowMap(isPlace && hasAddr ? p : null);
     document.getElementById('dMeta').innerHTML = `${p.address ? `<span data-cf-noui="1">📍 ${esc(p.address)}</span>` : ''}<span>🕐 ${timeAgo(p.created_at)}</span>`;
     document.getElementById('dBody').textContent = p.body || '';
     // 배달/내주변 추가 정보
     let extra = '';
     if (p.phone) extra += `<p style="margin-top:8px">📞 <a href="tel:${esc(String(p.phone).replace(/[^0-9+]/g, ''))}" style="color:var(--pri);font-weight:600">${esc(p.phone)}</a></p>`;
     if (p.opening_hours) extra += `<p>🕐 ${esc(p.opening_hours)}</p>`;
+    // v33: 배달 정보
+    if (Number(p.category) === 2 && p.extra) {
+      let ex = {}; try { ex = JSON.parse(p.extra) || {}; } catch (e) {}
+      const rows = [['🛵 배달 지역', ex.area], ['💵 최소 주문', ex.min], ['🚚 배달비', ex.fee], ['⏱️ 예상 시간', ex.time], ['🥡 포장', ex.pickup], ['💳 결제', ex.pay], ['🎁 이벤트', ex.event]]
+        .filter(r => r[1]);
+      if (rows.length) extra += `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#f7f5fc;font-size:13.5px;line-height:1.8">${rows.map(r => `<div><span style="color:var(--gray)">${r[0]}</span> &nbsp;${esc(r[1])}</div>`).join('')}</div>`;
+    }
     if (p.moq) extra += `<p>📦 MOQ: ${esc(p.moq)}</p>`;
     if (p.company_info) extra += `<p>🏢 ${esc(p.company_info)}</p>`;
     document.getElementById('dExtra').innerHTML = extra;
@@ -1321,26 +1348,38 @@ function onRegCatChange() {
   document.getElementById('regStatusGroup').classList.toggle('hide', cat >= 2);
   document.getElementById('regAddressGroup').classList.toggle('hide', cat === 4);
   // 자연: 가격·화폐 없음, 교류 글(대화·홍보·자랑·질문·모임…) + AI 글쓰기
-  const nature = cat === 4, nearby = cat === 3;
+  const nature = cat === 4, nearby = cat === 3, deliv = cat === 2;
+  const place = nearby || deliv; // v33: 배달도 내주변처럼 (주소 자동·지도·항목 채우기·AI)
   document.getElementById('regPriceGroup').classList.toggle('hide', nature);
-  document.getElementById('regAiBox').classList.toggle('hide', !nature && !nearby);
-  document.getElementById('regTplBox').classList.toggle('hide', !nearby);
-  document.getElementById('regMapChk').classList.toggle('hide', !nearby);
+  document.getElementById('regAiBox').classList.toggle('hide', !nature && !place);
+  document.getElementById('regTplBox').classList.toggle('hide', !place);
+  document.getElementById('regMapChk').classList.toggle('hide', !place);
+  document.getElementById('regDeliveryGroup').classList.toggle('hide', !deliv);
   document.getElementById('regMapMsg').textContent = '';
   document.getElementById('regMapPreview').classList.add('hide');
-  document.getElementById('regLocNote').textContent = nearby
+  document.getElementById('regLocNote').textContent = place
     ? "'📍 현재 위치'를 누르면 지금 있는 곳의 주소가 자동으로 들어가고 지도에 표시돼요. 이 주소는 글에 공개되니 가게·장소에서만 써 주세요. (주소를 찾으려고 위치를 OpenStreetMap에 보내요)"
     : "'📍 현재 위치'를 누른 경우에만 글 위치가 약 1km 범위로 저장되고, 다른 사람에게는 좌표가 아닌 거리(km)만 보여요.";
-  document.getElementById('regAddrLabel').textContent = nearby ? '주소 (적으면 상세 화면 지도에 표시돼요)' : '위치 / 주소';
-  document.getElementById('regSubCatLabel').textContent = nature ? '어떤 글인가요?' : nearby ? '어떤 곳인가요?' : '세부 카테고리';
-  document.querySelector('#regPage .rtitle').textContent = nature ? '🌿 이야기 나누기' : nearby ? '📍 내주변 소개하기' : '무료 등록';
+  document.getElementById('regAddrLabel').textContent = deliv ? '가게 주소 (적으면 상세 화면 지도에 표시돼요)'
+    : nearby ? '주소 (적으면 상세 화면 지도에 표시돼요)' : '위치 / 주소';
+  document.getElementById('regSubCatLabel').textContent = nature ? '어떤 글인가요?' : nearby ? '어떤 곳인가요?' : deliv ? '어떤 음식인가요?' : '세부 카테고리';
+  document.querySelector('#regPage .rtitle').textContent = nature ? '🌿 이야기 나누기' : nearby ? '📍 내주변 소개하기' : deliv ? '🛵 배달 가게 등록' : '무료 등록';
   document.getElementById('regTitle').placeholder = nature ? '예: 오늘 동네 산책길 노을 보세요 🌅'
-    : nearby ? '예: 대부도 바다 보이는 칼국수집' : '제목을 입력하세요';
+    : nearby ? '예: 대부도 바다 보이는 칼국수집' : deliv ? '예: 바삭한 옛날통닭 · 대부도 배달' : '제목을 입력하세요';
   document.getElementById('regBody').placeholder = nature
     ? '자유롭게 적어 주세요. 자랑·홍보·질문·추천·모임 모집 모두 좋아요.\n대충 써도 아래 ✨ AI 글쓰기가 다듬어 줘요.'
-    : nearby ? '📝 항목 채우기를 누르면 적을 항목이 나와요.\n대충 써도 ✨ AI 글쓰기가 다듬어 줘요.'
+    : place ? '📝 항목 채우기를 누르면 적을 항목이 나와요.\n대충 써도 ✨ AI 글쓰기가 다듬어 줘요.'
     : '상세 설명을 입력하세요';
-  if (nearby) pdTplLabel();
+  if (place) pdTplLabel();
+}
+
+// ===== v33 배달: 메뉴 소개 항목 (배달 조건은 아래 '배달 정보' 칸에 따로) =====
+const DELIVERY_TPL_LINES = ['🍽️ 대표 메뉴·가격: ', '🥢 세트·사이드: ', '😋 맛 특징: ', '🌶️ 맵기·양 조절: ', '📌 주문 팁: '];
+function pdTplFor() {
+  const cat = parseInt(document.getElementById('regCat').value);
+  const i = parseInt(document.getElementById('regSubCat').value) || 0;
+  if (cat === 2) return { name: (subCats[2] || [])[i + 1] || '배달', lines: DELIVERY_TPL_LINES };
+  return NEARBY_TPL[i] || NEARBY_TPL[0];
 }
 
 // ===== v31 내주변: 종류별 글 항목(템플릿) =====
@@ -1353,13 +1392,11 @@ const NEARBY_TPL = [
   { name: '숙소', lines: ['🛏️ 객실 종류: ', '💰 1박 가격대: ', '✨ 좋은 점: ', '🍳 조식·편의: ', '🚗 주차·교통: '] }
 ];
 function pdTplLabel() {
-  const i = parseInt(document.getElementById('regSubCat').value) || 0;
-  const t = NEARBY_TPL[i] || NEARBY_TPL[0];
+  const t = pdTplFor();
   document.getElementById('regTplBtn').textContent = `📝 ${t.name} 항목 채우기`;
 }
 function insertTemplate() {
-  const i = parseInt(document.getElementById('regSubCat').value) || 0;
-  const t = NEARBY_TPL[i] || NEARBY_TPL[0];
+  const t = pdTplFor();
   const el = document.getElementById('regBody');
   const tpl = t.lines.join('\n');
   if (el.value.includes(t.lines[0].trim())) { el.focus(); return; } // 이미 넣었으면 다시 안 넣음
@@ -1456,6 +1493,13 @@ async function submitPost() {
   formData.append('moq', document.getElementById('regMoq').value);
   formData.append('company_info', document.getElementById('regCompany').value);
   formData.append('sale_status', regSaleStatus);
+  // v33: 배달 정보 (서버 pd_posts.extra 에 JSON 으로 저장)
+  if (cat === 2) {
+    const v = id => document.getElementById(id).value.trim();
+    const ex = { area: v('dlArea'), min: v('dlMin'), fee: v('dlFee'), time: v('dlTime'), pickup: v('dlPickup'), pay: v('dlPay'), event: v('dlEvent') };
+    Object.keys(ex).forEach(k => { if (!ex[k]) delete ex[k]; });
+    if (Object.keys(ex).length) formData.append('extra', JSON.stringify(ex));
+  }
   if (regLat || regLng) { formData.append('lat', regLat); formData.append('lng', regLng); }
   regImageFiles.forEach(f => formData.append('images', f));
 
@@ -1474,6 +1518,7 @@ async function submitPost() {
       document.getElementById('regTitle').value = '';
       document.getElementById('regBody').value = '';
       document.getElementById('regPrice').value = '';
+      ['dlArea','dlMin','dlFee','dlTime','dlPickup','dlPay','dlEvent'].forEach(id => { document.getElementById(id).value = ''; });
       loadPosts();
     } else if (res.status === 401) {
       // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우 → 다시 로그인
@@ -1994,15 +2039,16 @@ function getMyLocation() {
   if (!navigator.geolocation) { alert('이 기기에서는 위치를 쓸 수 없어요'); return; }
   const cat = parseInt(document.getElementById('regCat').value);
   const m = document.getElementById('regMapMsg');
-  if (cat === 3) { m.style.color = 'var(--gray)'; m.textContent = '📍 현재 위치 확인 중…'; }
+  const place = cat === 2 || cat === 3; // v33: 배달도 포함
+  if (place) { m.style.color = 'var(--gray)'; m.textContent = '📍 현재 위치 확인 중…'; }
   navigator.geolocation.getCurrentPosition(pos => {
     regLat = pos.coords.latitude;
     regLng = pos.coords.longitude;
-    // v32: 내주변 글만 — 현재 위치로 주소 자동 입력 + 지도 미리보기
-    if (cat === 3) regFillAddressFromLoc(regLat, regLng);
+    // v32: 내주변·배달 글만 — 현재 위치로 주소 자동 입력 + 지도 미리보기
+    if (place) regFillAddressFromLoc(regLat, regLng);
     else alert('글 위치를 넣었습니다 (약 1km 범위로만 저장돼요)');
   }, () => {
-    if (cat === 3) { m.style.color = 'var(--red)'; m.textContent = '위치를 가져올 수 없어요. 휴대폰 위치(GPS)와 브라우저 위치 권한을 켜 주세요.'; }
+    if (place) { m.style.color = 'var(--red)'; m.textContent = '위치를 가져올 수 없어요. 휴대폰 위치(GPS)와 브라우저 위치 권한을 켜 주세요.'; }
     else alert('위치를 가져올 수 없습니다');
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
 }
