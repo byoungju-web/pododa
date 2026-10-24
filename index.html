@@ -10,6 +10,13 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--pri:#7C3AED;--pri2:#6D28D9;--bg:#f5f5f5;--white:#fff;--gray:#888;--lgray:#e5e5e5;--dgray:#333;--red:#ef4444;--green:#22c55e;--orange:#f59e0b;--radius:12px}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--dgray);max-width:480px;margin:0 auto;min-height:100vh;position:relative;overflow-x:hidden}
+/* v31: 글자를 눌렀을 때 크롬 '탭하여 검색'(하단 구글 안내창)이 뜨지 않게 화면 글자는 선택 안 되게, 입력칸만 선택 가능 */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+input,textarea,select,[contenteditable="true"]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+/* v31: 내주변 지도 */
+.d-map{height:200px;border-radius:12px;overflow:hidden;margin-top:12px;background:var(--lgray);position:relative;z-index:0}
+.d-map-note{font-size:12px;color:var(--gray);margin-top:6px}
+.tpl-btn{padding:6px 12px;border:1px solid var(--pri);border-radius:16px;font-size:12.5px;color:var(--pri);background:var(--white);cursor:pointer;margin:6px 6px 0 0}
 a{text-decoration:none;color:inherit}
 
 /* 상단바 */
@@ -334,12 +341,17 @@ a{text-decoration:none;color:inherit}
     <div class="d-meta" id="dMeta"></div>
     <div class="d-text" id="dBody" data-cf-noui="1"></div>
     <div id="dExtra" data-cf-noui="1"></div>
+    <div id="dMapBox" style="display:none">
+      <div class="d-map" id="dMap"></div>
+      <div class="d-map-note" id="dMapNote"></div>
+    </div>
     <div class="d-stats" id="dStats"></div>
   </div>
 </div>
 <div class="detail-bottom" id="detailBottom" style="display:none">
   <div class="like-btn" id="dLikeBtn" onclick="toggleLike()">🤍</div>
   <button class="offer-btn" onclick="makeOffer()">💰 가격제안</button>
+  <button class="offer-btn" id="dRouteBtn" onclick="openRoute()" style="display:none">🗺️ 길찾기</button>
   <button class="chat-btn" onclick="startChat()">💬 채팅하기</button>
 </div>
 
@@ -363,7 +375,7 @@ a{text-decoration:none;color:inherit}
     </div>
     <div class="form-group" id="regSubCatGroup">
       <label id="regSubCatLabel">세부 카테고리</label>
-      <select id="regSubCat"></select>
+      <select id="regSubCat" onchange="if(parseInt(document.getElementById('regCat').value)===3)pdTplLabel()"></select>
     </div>
     <div class="form-group">
       <label>사진 (최대 8장)</label>
@@ -392,15 +404,18 @@ a{text-decoration:none;color:inherit}
     <div class="form-group">
       <label>설명</label>
       <textarea id="regBody" placeholder="상세 설명을 입력하세요" maxlength="5000"></textarea>
+      <div id="regTplBox" class="hide"><button type="button" class="tpl-btn" id="regTplBtn" onclick="insertTemplate()">📝 항목 채우기</button></div>
       <div id="regAiBox" class="hide" style="margin-top:8px">
         <button type="button" id="regAiBtn" onclick="aiWrite()" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#9F67FF);color:#fff;font-size:14px;font-weight:600;cursor:pointer">✨ AI 글쓰기 (무료) — 대충 써도 알아서 채워줘요</button>
         <p id="regAiMsg" style="font-size:12px;color:var(--gray);margin-top:6px;line-height:1.5">몇 단어만 적고 눌러 보세요. 제목과 내용을 AI가 다듬어 채워 드려요. 마음에 안 들면 다시 누르거나 직접 고치면 돼요.</p>
       </div>
     </div>
     <div class="form-group" id="regAddressGroup">
-      <label>위치 / 주소</label>
+      <label id="regAddrLabel">위치 / 주소</label>
       <input type="text" id="regAddress" placeholder="주소 입력">
       <button onclick="getMyLocation()" style="margin-top:6px;padding:6px 12px;border:1px solid var(--lgray);border-radius:6px;font-size:12px;cursor:pointer;background:var(--white)">📍 현재 위치</button>
+      <button id="regMapChk" class="hide" onclick="regCheckMap()" style="margin-top:6px;padding:6px 12px;border:1px solid var(--pri);border-radius:6px;font-size:12px;cursor:pointer;background:var(--white);color:var(--pri)">🗺️ 지도에 나오는지 확인</button>
+      <div id="regMapMsg" style="font-size:12px;margin-top:6px"></div>
       <p id="regLocNote" style="font-size:11.5px;color:var(--gray);margin-top:6px;line-height:1.5">'📍 현재 위치'를 누른 경우에만 글 위치가 약 1km 범위로 저장되고, 다른 사람에게는 좌표가 아닌 거리(km)만 보여요.</p>
     </div>
     <div class="form-group hide" id="regPhoneGroup">
@@ -1138,14 +1153,18 @@ async function openDetail(postId) {
     document.getElementById('dTitle').textContent = p.title;
     const isNature = Number(p.category) === 4;
     document.getElementById('dPrice').textContent = isNature ? '' : (p.price ? `${p.price} ${p.currency || ''}` : '');
-    // 자연: 가격제안 대신 대화하기만
-    document.querySelector('#detailBottom .offer-btn').style.display = isNature ? 'none' : '';
-    document.querySelector('#detailBottom .chat-btn').textContent = isNature ? '💬 대화하기' : '💬 채팅하기';
-    document.getElementById('dMeta').innerHTML = `<span data-cf-noui="1">📍 ${esc(p.address || '')}</span><span>🕐 ${timeAgo(p.created_at)}</span>`;
+    // 자연: 가격제안 대신 대화하기만 / 내주변: 가격제안 대신 길찾기(주소 있을 때)
+    const isNearby = Number(p.category) === 3;
+    const hasAddr = !!String(p.address || '').trim();
+    document.querySelector('#detailBottom .offer-btn').style.display = (isNature || isNearby) ? 'none' : '';
+    document.getElementById('dRouteBtn').style.display = (isNearby && hasAddr) ? '' : 'none';
+    document.querySelector('#detailBottom .chat-btn').textContent = isNature ? '💬 대화하기' : isNearby ? '💬 문의하기' : '💬 채팅하기';
+    pdShowMap(isNearby && hasAddr ? p : null);
+    document.getElementById('dMeta').innerHTML = `${p.address ? `<span data-cf-noui="1">📍 ${esc(p.address)}</span>` : ''}<span>🕐 ${timeAgo(p.created_at)}</span>`;
     document.getElementById('dBody').textContent = p.body || '';
     // 배달/내주변 추가 정보
     let extra = '';
-    if (p.phone) extra += `<p style="margin-top:8px">📞 ${esc(p.phone)}</p>`;
+    if (p.phone) extra += `<p style="margin-top:8px">📞 <a href="tel:${esc(String(p.phone).replace(/[^0-9+]/g, ''))}" style="color:var(--pri);font-weight:600">${esc(p.phone)}</a></p>`;
     if (p.opening_hours) extra += `<p>🕐 ${esc(p.opening_hours)}</p>`;
     if (p.moq) extra += `<p>📦 MOQ: ${esc(p.moq)}</p>`;
     if (p.company_info) extra += `<p>🏢 ${esc(p.company_info)}</p>`;
@@ -1158,6 +1177,69 @@ async function openDetail(postId) {
   } catch (e) {
     alert('게시글을 불러올 수 없습니다');
   }
+}
+
+// ===== v31 내주변: 무료 지도 (OpenStreetMap + Leaflet, 주소 → 위치는 Nominatim 무료 검색) =====
+// 글에 적힌 '주소 글자'만 지도에 찾아 표시 (이용자 좌표는 쓰지 않음)
+let pdLeafletP = null, pdMapObj = null, pdRoutePost = null;
+function pdLoadLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (pdLeafletP) return pdLeafletP;
+  pdLeafletP = new Promise((ok, fail) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(css);
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    s.onload = ok; s.onerror = () => { pdLeafletP = null; fail(new Error('map')); };
+    document.head.appendChild(s);
+  });
+  return pdLeafletP;
+}
+async function pdGeocode(addr, nation) {
+  const key = 'pd_geo_' + (nation || '') + '_' + addr;
+  try { const c = localStorage.getItem(key); if (c) return JSON.parse(c); } catch (e) {}
+  const q = new URLSearchParams({ q: addr, format: 'json', limit: '1', 'accept-language': 'ko' });
+  if (nation && /^[A-Z]{2}$/.test(nation)) q.set('countrycodes', nation.toLowerCase());
+  const r = await fetch('https://nominatim.openstreetmap.org/search?' + q.toString());
+  if (!r.ok) throw new Error('geo');
+  const j = await r.json();
+  const hit = j && j[0] ? { lat: +j[0].lat, lng: +j[0].lon } : null;
+  try { if (hit) localStorage.setItem(key, JSON.stringify(hit)); } catch (e) {}
+  return hit;
+}
+async function pdShowMap(p) {
+  const box = document.getElementById('dMapBox'), note = document.getElementById('dMapNote');
+  pdRoutePost = p;
+  if (pdMapObj) { try { pdMapObj.remove(); } catch (e) {} pdMapObj = null; }
+  if (!p) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  document.getElementById('dMap').innerHTML = '<div class="loading" style="padding-top:80px">🗺️ 지도 불러오는 중…</div>';
+  note.textContent = '';
+  try {
+    const [hit] = await Promise.all([pdGeocode(String(p.address).trim(), p.nation_code), pdLoadLeaflet()]);
+    if (pdRoutePost !== p) return; // 그 사이 다른 글을 열었으면 그만
+    if (!hit) {
+      document.getElementById('dMap').innerHTML = '<div style="padding:70px 16px;text-align:center;font-size:13px;color:var(--gray)">이 주소를 지도에서 찾지 못했어요.<br>아래 🗺️ 길찾기로 지도 앱에서 확인해 주세요.</div>';
+      return;
+    }
+    document.getElementById('dMap').innerHTML = '';
+    pdMapObj = L.map('dMap', { zoomControl: true, attributionControl: true }).setView([hit.lat, hit.lng], 16);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(pdMapObj);
+    L.marker([hit.lat, hit.lng]).addTo(pdMapObj);
+    setTimeout(() => { try { pdMapObj && pdMapObj.invalidateSize(); } catch (e) {} }, 200);
+    note.textContent = '주소로 찾은 위치예요. 실제 위치와 조금 다를 수 있어요.';
+  } catch (e) {
+    document.getElementById('dMap').innerHTML = '<div style="padding:70px 16px;text-align:center;font-size:13px;color:var(--gray)">지도를 불러오지 못했어요. 🗺️ 길찾기를 눌러 주세요.</div>';
+  }
+}
+// 길찾기: 한국은 카카오맵, 그 밖의 나라는 구글 지도 (둘 다 무료 링크)
+function openRoute() {
+  const p = pdRoutePost || viewingPost;
+  if (!p || !p.address) return;
+  const q = encodeURIComponent(String(p.address).trim());
+  const url = p.nation_code === 'KR' ? `https://map.kakao.com/link/search/${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+  window.open(url, '_blank');
 }
 
 function closeDetail() { document.getElementById('detailPage').classList.remove('show'); document.getElementById('detailBottom').style.display = 'none'; }
@@ -1232,21 +1314,63 @@ function onRegCatChange() {
   }
   // 카테고리별 필드 표시
   document.getElementById('regPhoneGroup').classList.toggle('hide', cat !== 2 && cat !== 3);
-  document.getElementById('regHoursGroup').classList.toggle('hide', cat !== 2);
+  document.getElementById('regHoursGroup').classList.toggle('hide', cat !== 2 && cat !== 3);
   document.getElementById('regMoqGroup').classList.toggle('hide', cat !== 1);
   document.getElementById('regCompanyGroup').classList.toggle('hide', cat !== 1);
   document.getElementById('regStatusGroup').classList.toggle('hide', cat >= 2);
   document.getElementById('regAddressGroup').classList.toggle('hide', cat === 4);
   // 자연: 가격·화폐 없음, 교류 글(대화·홍보·자랑·질문·모임…) + AI 글쓰기
-  const nature = cat === 4;
+  const nature = cat === 4, nearby = cat === 3;
   document.getElementById('regPriceGroup').classList.toggle('hide', nature);
-  document.getElementById('regAiBox').classList.toggle('hide', !nature);
-  document.getElementById('regSubCatLabel').textContent = nature ? '어떤 글인가요?' : '세부 카테고리';
-  document.querySelector('#regPage .rtitle').textContent = nature ? '🌿 이야기 나누기' : '무료 등록';
-  document.getElementById('regTitle').placeholder = nature ? '예: 오늘 동네 산책길 노을 보세요 🌅' : '제목을 입력하세요';
+  document.getElementById('regAiBox').classList.toggle('hide', !nature && !nearby);
+  document.getElementById('regTplBox').classList.toggle('hide', !nearby);
+  document.getElementById('regMapChk').classList.toggle('hide', !nearby);
+  document.getElementById('regMapMsg').textContent = '';
+  document.getElementById('regAddrLabel').textContent = nearby ? '주소 (적으면 상세 화면 지도에 표시돼요)' : '위치 / 주소';
+  document.getElementById('regSubCatLabel').textContent = nature ? '어떤 글인가요?' : nearby ? '어떤 곳인가요?' : '세부 카테고리';
+  document.querySelector('#regPage .rtitle').textContent = nature ? '🌿 이야기 나누기' : nearby ? '📍 내주변 소개하기' : '무료 등록';
+  document.getElementById('regTitle').placeholder = nature ? '예: 오늘 동네 산책길 노을 보세요 🌅'
+    : nearby ? '예: 대부도 바다 보이는 칼국수집' : '제목을 입력하세요';
   document.getElementById('regBody').placeholder = nature
     ? '자유롭게 적어 주세요. 자랑·홍보·질문·추천·모임 모집 모두 좋아요.\n대충 써도 아래 ✨ AI 글쓰기가 다듬어 줘요.'
+    : nearby ? '📝 항목 채우기를 누르면 적을 항목이 나와요.\n대충 써도 ✨ AI 글쓰기가 다듬어 줘요.'
     : '상세 설명을 입력하세요';
+  if (nearby) pdTplLabel();
+}
+
+// ===== v31 내주변: 종류별 글 항목(템플릿) =====
+// subCats[3] 순서: 맛집, 카페, 편의시설, 의료, 숙소
+const NEARBY_TPL = [
+  { name: '맛집', lines: ['🍽️ 대표 메뉴: ', '💰 1인 가격대: ', '😋 맛·분위기: ', '🗓️ 휴무일: ', '🚗 주차: ', '📌 꿀팁 (웨이팅·예약·추천 시간): '] },
+  { name: '카페', lines: ['☕ 추천 메뉴: ', '🍰 디저트: ', '🪑 분위기·좌석: ', '🔌 콘센트·와이파이: ', '🚗 주차: ', '📌 꿀팁: '] },
+  { name: '편의시설', lines: ['🏪 어떤 곳인가요: ', '💰 이용 요금: ', '💡 이용 팁: '] },
+  { name: '의료', lines: ['🏥 진료 과목: ', '🗓️ 휴진일: ', '📌 예약·대기 팁: ', '👍 좋았던 점: '] },
+  { name: '숙소', lines: ['🛏️ 객실 종류: ', '💰 1박 가격대: ', '✨ 좋은 점: ', '🍳 조식·편의: ', '🚗 주차·교통: '] }
+];
+function pdTplLabel() {
+  const i = parseInt(document.getElementById('regSubCat').value) || 0;
+  const t = NEARBY_TPL[i] || NEARBY_TPL[0];
+  document.getElementById('regTplBtn').textContent = `📝 ${t.name} 항목 채우기`;
+}
+function insertTemplate() {
+  const i = parseInt(document.getElementById('regSubCat').value) || 0;
+  const t = NEARBY_TPL[i] || NEARBY_TPL[0];
+  const el = document.getElementById('regBody');
+  const tpl = t.lines.join('\n');
+  if (el.value.includes(t.lines[0].trim())) { el.focus(); return; } // 이미 넣었으면 다시 안 넣음
+  el.value = el.value.trim() ? el.value.trim() + '\n\n' + tpl : tpl;
+  el.focus();
+}
+async function regCheckMap() {
+  const addr = document.getElementById('regAddress').value.trim();
+  const m = document.getElementById('regMapMsg');
+  if (!addr) { m.style.color = 'var(--red)'; m.textContent = '주소를 먼저 적어 주세요.'; return; }
+  m.style.color = 'var(--gray)'; m.textContent = '🗺️ 확인 중…';
+  try {
+    const hit = await pdGeocode(addr, currentNation);
+    if (hit) { m.style.color = 'var(--green)'; m.textContent = '✅ 지도에 표시돼요.'; }
+    else { m.style.color = 'var(--orange)'; m.textContent = '⚠️ 지도에서 못 찾았어요. 도로명 주소(예: OO시 OO로 123)로 적어 보세요. 길찾기 버튼은 그대로 쓸 수 있어요.'; }
+  } catch (e) { m.style.color = 'var(--red)'; m.textContent = '확인하지 못했어요. 잠시 후 다시 눌러 주세요.'; }
 }
 
 // ===== 자연: 무료 AI 글쓰기 (서버의 Cloudflare Workers AI 사용) =====
@@ -1261,7 +1385,8 @@ async function aiWrite() {
   btn.disabled = true; btn.textContent = '✨ AI가 쓰는 중…';
   msg.style.color = 'var(--gray)'; msg.textContent = '잠시만 기다려 주세요 (5~15초)';
   try {
-    const body = JSON.stringify({ kind, title: tEl.value.trim(), body: bEl.value.trim(), lang: currentLang, nation: currentNation });
+    const cat = parseInt(document.getElementById('regCat').value);
+    const body = JSON.stringify({ cat, kind, title: tEl.value.trim(), body: bEl.value.trim(), address: document.getElementById('regAddress').value.trim(), lang: currentLang, nation: currentNation });
     const opt = () => ({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body });
     let r = await fetch(`${API}/ai/write`, opt());
     if (r.status === 401 && await refreshToken()) r = await fetch(`${API}/ai/write`, opt());
