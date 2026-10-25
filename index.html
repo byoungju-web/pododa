@@ -16,6 +16,21 @@ input,textarea,select,[contenteditable="true"]{-webkit-user-select:text;user-sel
 /* v31: 내주변 지도 */
 .d-map{height:200px;border-radius:12px;overflow:hidden;margin-top:12px;background:var(--lgray);position:relative;z-index:0}
 .d-map-note{font-size:12px;color:var(--gray);margin-top:6px}
+/* v34: 상점 목록 2열 카드 (도매몰 형태) */
+#postList.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px}
+#postList.shop-grid > :not(.shop-card){grid-column:1/-1}
+.shop-card{background:var(--white);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer;display:flex;flex-direction:column;min-width:0}
+.shop-card .s-img{width:100%;aspect-ratio:1/1;object-fit:cover;background:var(--lgray);display:block}
+.shop-card .s-info{padding:8px 9px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.shop-card .s-badges{display:flex;gap:4px;flex-wrap:wrap}
+.shop-card .s-badge{font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#ede9fe;color:var(--pri)}
+.shop-card .s-badge.g{background:#dcfce7;color:#15803d}
+.shop-card .s-title{font-size:13.5px;line-height:1.35;color:var(--dgray);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
+.shop-card .s-price{font-size:16px;font-weight:800;color:var(--dgray);word-break:break-all}
+.shop-card .s-moq{font-size:11.5px;font-weight:500;color:var(--gray);white-space:nowrap}
+.shop-card .s-noimg{display:flex;align-items:center;justify-content:center;font-size:40px;color:#bbb}
+.shop-card .s-meta{font-size:11.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shop-card .s-meta b{color:var(--pri)}
 .tpl-btn{padding:6px 12px;border:1px solid var(--pri);border-radius:16px;font-size:12.5px;color:var(--pri);background:var(--white);cursor:pointer;margin:6px 6px 0 0}
 a{text-decoration:none;color:inherit}
 
@@ -389,9 +404,11 @@ a{text-decoration:none;color:inherit}
       <input type="text" id="regTitle" placeholder="제목을 입력하세요" maxlength="50">
     </div>
     <div class="form-group" id="regPriceGroup">
-      <label>가격</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="regPrice" placeholder="가격" style="flex:1">
+      <label id="regPriceLabel">가격</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="regPrice" placeholder="가격" style="flex:1;min-width:0">
+        <span id="shTilde" class="hide" style="color:var(--gray)">~</span>
+        <input type="text" id="shPmax" class="hide" placeholder="최고 단가" inputmode="numeric" style="flex:1;min-width:0">
         <select id="regCurrency" style="width:90px">
           <option>KRW</option><option>USD</option><option>EUR</option><option>JPY</option>
           <option>CNY</option><option>THB</option><option>VND</option><option>GBP</option>
@@ -446,13 +463,46 @@ a{text-decoration:none;color:inherit}
       <input type="text" id="dlPay" placeholder="결제 방법 (예: 카드·현금·계좌이체)" maxlength="60" style="margin-top:8px">
       <input type="text" id="dlEvent" placeholder="이벤트·할인 (예: 리뷰 쓰면 음료 서비스)" maxlength="100" style="margin-top:8px">
     </div>
+    <!-- v34: 상점(도매) 정보 -->
     <div class="form-group hide" id="regMoqGroup">
-      <label>MOQ (최소주문수량)</label>
-      <input type="text" id="regMoq" placeholder="최소주문수량">
+      <label>📦 주문 조건</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="regMoq" placeholder="MOQ 최소주문수량 (예: 100)" inputmode="numeric" style="flex:2;min-width:0">
+        <select id="shUnit" style="flex:1;min-width:0">
+          <option value="개">개</option><option value="세트">세트</option><option value="박스">박스</option>
+          <option value="kg">kg</option><option value="톤">톤</option><option value="m">m</option>
+          <option value="장">장</option><option value="벌">벌</option><option value="켤레">켤레</option><option value="L">L</option>
+        </select>
+      </div>
+      <input type="text" id="shTiers" placeholder="수량별 단가 (예: 100개↑ 1,200원 / 1,000개↑ 1,000원)" maxlength="100" style="margin-top:8px">
+      <input type="text" id="shSupply" placeholder="공급 능력 (예: 월 10,000개)" maxlength="60" style="margin-top:8px">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <select id="shSample" style="flex:1;min-width:0">
+          <option value="">샘플 제공</option><option value="샘플 무료">샘플 무료</option>
+          <option value="샘플 유료">샘플 유료</option><option value="샘플 불가">샘플 불가</option>
+        </select>
+        <select id="shOem" style="flex:1;min-width:0">
+          <option value="">맞춤 제작</option><option value="OEM/ODM">OEM/ODM 가능</option>
+          <option value="OEM">OEM 가능</option><option value="불가">맞춤 제작 불가</option>
+        </select>
+      </div>
+      <input type="text" id="shLead" placeholder="생산·출고 기간 (예: 주문 후 7일)" maxlength="60" style="margin-top:8px">
+      <input type="text" id="shShip" placeholder="배송·거래 조건 (예: 택배, 화물, EXW, FOB 부산)" maxlength="100" style="margin-top:8px">
     </div>
     <div class="form-group hide" id="regCompanyGroup">
-      <label>회사 정보</label>
-      <input type="text" id="regCompany" placeholder="회사명 / 사업 정보">
+      <label>🏭 업체 정보</label>
+      <input type="text" id="regCompany" placeholder="회사명 (예: 포도상사)" maxlength="100">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <select id="shBtype" style="flex:1;min-width:0">
+          <option value="">업체 유형</option><option value="제조사">제조사</option><option value="도매">도매</option>
+          <option value="무역회사">무역회사</option><option value="소매">소매</option>
+        </select>
+        <input type="text" id="shSince" placeholder="설립 연도 (예: 2015)" inputmode="numeric" maxlength="4" style="flex:1;min-width:0">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="shOrigin" placeholder="원산지 (예: 한국)" maxlength="40" style="flex:1;min-width:0">
+        <input type="text" id="shCert" placeholder="인증 (예: KC, CE)" maxlength="60" style="flex:1;min-width:0">
+      </div>
     </div>
     <div class="form-group" id="regStatusGroup">
       <label>판매 상태</label>
@@ -1102,12 +1152,54 @@ async function loadPosts() {
       return;
     }
     empty.classList.add('hide');
-    list.innerHTML = (nearby ? locBarHtml() : '') + data.posts.map(p => renderPostCard(p)).join('');
+    // v34: 상점 탭은 2열 카드
+    const shop = currentTab === 1;
+    list.classList.toggle('shop-grid', shop);
+    list.innerHTML = (nearby ? locBarHtml() : '') + data.posts.map(p => shop ? renderShopCard(p) : renderPostCard(p)).join('');
   } catch (e) {
     // API 아직 없으면 샘플 표시
     empty.classList.remove('hide');
+    list.classList.remove('shop-grid');
     list.innerHTML = '';
   }
+}
+
+// ===== v34 상점: 도매몰 형태 카드 =====
+const PD_CUR_SYM = { KRW:'₩', USD:'$', EUR:'€', JPY:'¥', CNY:'¥', GBP:'£', THB:'฿', VND:'₫', PHP:'₱', INR:'₹', RUB:'₽', TRY:'₺', AUD:'A$', CAD:'C$', SGD:'S$', MYR:'RM', IDR:'Rp', BRL:'R$', MXN:'MX$', AED:'AED ' };
+function pdParseExtra(p) { try { return p && p.extra ? (JSON.parse(p.extra) || {}) : {}; } catch (e) { return {}; } }
+function pdNum(s) {
+  const t = String(s || '').replace(/,/g, '').trim();
+  return /^\d+(\.\d+)?$/.test(t) ? Number(t).toLocaleString('ko-KR') : String(s || '').trim();
+}
+function pdShopPrice(p, ex) {
+  const lo = String(p.price || '').trim(), hi = String(ex.pmax || '').trim();
+  if (!lo && !hi) return '가격 문의';
+  const sym = PD_CUR_SYM[p.currency];
+  const range = lo && hi && pdNum(lo) !== pdNum(hi) ? `${pdNum(lo)}-${pdNum(hi)}` : pdNum(lo || hi);
+  return sym ? sym + range : `${range} ${esc(p.currency || '')}`;
+}
+function renderShopCard(p) {
+  const ex = pdParseExtra(p);
+  let img = ''; try { img = p.images ? JSON.parse(p.images)[0] : ''; } catch (e) {}
+  const status = p.sale_status === 1 ? '<span class="s-badge" style="background:#fef3c7;color:#b45309">예약중</span>'
+    : p.sale_status === 2 ? '<span class="s-badge" style="background:#e5e7eb;color:#555">거래완료</span>' : '';
+  const badges = [status,
+    ex.btype ? `<span class="s-badge">${esc(ex.btype)}</span>` : '',
+    ex.oem && ex.oem !== '불가' ? `<span class="s-badge g">${esc(ex.oem)}</span>` : '',
+    ex.cert ? `<span class="s-badge g">✓ ${esc(ex.cert)}</span>` : ''].join('');
+  const years = /^\d{4}$/.test(ex.since || '') ? Math.max(0, new Date().getFullYear() - Number(ex.since)) : null;
+  const meta = [years != null ? `<b>${years || 1}년</b>` : '', esc(p.nation_code || ''), ex.origin ? '원산지 ' + esc(ex.origin) : ''].filter(Boolean).join(' · ');
+  return `<div class="shop-card" onclick="openDetail(${p.id})">
+    ${img ? `<img class="s-img" src="${esc(img)}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=&quot;s-img s-noimg&quot;>📦</div>'">` : '<div class="s-img s-noimg">📦</div>'}
+    <div class="s-info">
+      ${badges ? `<div class="s-badges">${badges}</div>` : ''}
+      <div class="s-title" data-cf-noui="1">${esc(p.title)}</div>
+      <div class="s-price">${pdShopPrice(p, ex)}</div>
+      ${p.moq ? `<div class="s-moq">MOQ: ${esc(pdNum(p.moq))}${ex.unit ? esc(ex.unit) : ''}</div>` : ''}
+      ${meta ? `<div class="s-meta">${meta}</div>` : ''}
+      <div class="s-meta">❤️ ${p.like_count||0} · 💬 ${p.chat_count||0} · 👁 ${p.view_count||0}</div>
+    </div>
+  </div>`;
 }
 
 function renderPostCard(p, showNationFlag) {
@@ -1172,7 +1264,9 @@ async function openDetail(postId) {
       : p.sale_status === 2 ? '<span class="status-badge status-done" style="margin-top:12px">거래완료</span>' : '';
     document.getElementById('dTitle').textContent = p.title;
     const isNature = Number(p.category) === 4;
-    document.getElementById('dPrice').textContent = isNature ? '' : (p.price ? `${p.price} ${p.currency || ''}` : '');
+    document.getElementById('dPrice').textContent = isNature ? ''
+      : Number(p.category) === 1 ? pdShopPrice(p, pdParseExtra(p)).replace(/&[a-z]+;/g, '') // v34: 상점 단가 범위
+      : (p.price ? `${p.price} ${p.currency || ''}` : '');
     // 자연: 가격제안 대신 대화하기만 / 내주변: 가격제안 대신 길찾기(주소 있을 때)
     const isNearby = Number(p.category) === 3, isDeliv = Number(p.category) === 2;
     const isPlace = isNearby || isDeliv; // v33: 배달도 내주변처럼
@@ -1194,8 +1288,18 @@ async function openDetail(postId) {
         .filter(r => r[1]);
       if (rows.length) extra += `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#f7f5fc;font-size:13.5px;line-height:1.8">${rows.map(r => `<div><span style="color:var(--gray)">${r[0]}</span> &nbsp;${esc(r[1])}</div>`).join('')}</div>`;
     }
-    if (p.moq) extra += `<p>📦 MOQ: ${esc(p.moq)}</p>`;
-    if (p.company_info) extra += `<p>🏢 ${esc(p.company_info)}</p>`;
+    if (Number(p.category) === 1) {
+      // v34: 상점(도매) 정보 상자
+      const ex = pdParseExtra(p);
+      const rows = [['📦 MOQ', p.moq ? pdNum(p.moq) + (ex.unit || '') : ''], ['📊 수량별 단가', ex.tiers], ['🏭 공급 능력', ex.supply],
+        ['🧪 샘플', ex.sample], ['🛠️ 맞춤 제작', ex.oem], ['⏱️ 생산·출고', ex.lead], ['🚚 배송·거래 조건', ex.ship],
+        ['🏢 회사', p.company_info], ['🏷️ 업체 유형', ex.btype], ['📅 설립', ex.since ? ex.since + '년' : ''], ['🌏 원산지', ex.origin], ['✅ 인증', ex.cert]]
+        .filter(r => r[1]);
+      if (rows.length) extra += `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#f7f5fc;font-size:13.5px;line-height:1.8">${rows.map(r => `<div><span style="color:var(--gray)">${r[0]}</span> &nbsp;${esc(r[1])}</div>`).join('')}</div>`;
+    } else {
+      if (p.moq) extra += `<p>📦 MOQ: ${esc(p.moq)}</p>`;
+      if (p.company_info) extra += `<p>🏢 ${esc(p.company_info)}</p>`;
+    }
     document.getElementById('dExtra').innerHTML = extra;
     document.getElementById('dStats').innerHTML = `<span>❤️ ${p.like_count||0}</span><span>💬 ${p.chat_count||0}</span><span>👁 ${p.view_count||0}</span>`;
     document.getElementById('detailPage').classList.add('show');
@@ -1371,6 +1475,17 @@ function onRegCatChange() {
     : place ? '📝 항목 채우기를 누르면 적을 항목이 나와요.\n대충 써도 ✨ AI 글쓰기가 다듬어 줘요.'
     : '상세 설명을 입력하세요';
   if (place) pdTplLabel();
+  // v34: 상점 = 도매 단가 범위
+  const shop = cat === 1;
+  document.getElementById('shTilde').classList.toggle('hide', !shop);
+  document.getElementById('shPmax').classList.toggle('hide', !shop);
+  document.getElementById('regPriceLabel').textContent = shop ? '💰 단가 (최저 ~ 최고, 하나만 적어도 돼요)' : '가격';
+  document.getElementById('regPrice').placeholder = shop ? '최저 단가' : '가격';
+  if (shop) {
+    document.querySelector('#regPage .rtitle').textContent = '🏬 상점 · 도매 등록';
+    document.getElementById('regTitle').placeholder = '예: 스테인리스 텀블러 500ml 대량 공급';
+    document.getElementById('regBody').placeholder = '제품 소개: 재질·규격·색상·포장 방법 등을 적어 주세요.';
+  }
 }
 
 // ===== v33 배달: 메뉴 소개 항목 (배달 조건은 아래 '배달 정보' 칸에 따로) =====
@@ -1493,6 +1608,14 @@ async function submitPost() {
   formData.append('moq', document.getElementById('regMoq').value);
   formData.append('company_info', document.getElementById('regCompany').value);
   formData.append('sale_status', regSaleStatus);
+  // v34: 상점(도매) 정보 (서버 pd_posts.extra 에 JSON 으로 저장, 최대 12개 항목)
+  if (cat === 1) {
+    const v = id => document.getElementById(id).value.trim();
+    const ex = { pmax: v('shPmax'), unit: v('shUnit'), tiers: v('shTiers'), supply: v('shSupply'), sample: v('shSample'), oem: v('shOem'),
+      lead: v('shLead'), ship: v('shShip'), btype: v('shBtype'), since: v('shSince'), origin: v('shOrigin'), cert: v('shCert') };
+    Object.keys(ex).forEach(k => { if (!ex[k]) delete ex[k]; });
+    if (Object.keys(ex).length) formData.append('extra', JSON.stringify(ex));
+  }
   // v33: 배달 정보 (서버 pd_posts.extra 에 JSON 으로 저장)
   if (cat === 2) {
     const v = id => document.getElementById(id).value.trim();
@@ -1518,7 +1641,9 @@ async function submitPost() {
       document.getElementById('regTitle').value = '';
       document.getElementById('regBody').value = '';
       document.getElementById('regPrice').value = '';
-      ['dlArea','dlMin','dlFee','dlTime','dlPickup','dlPay','dlEvent'].forEach(id => { document.getElementById(id).value = ''; });
+      ['dlArea','dlMin','dlFee','dlTime','dlPickup','dlPay','dlEvent',
+       'regMoq','regCompany','shPmax','shTiers','shSupply','shSample','shOem','shLead','shShip','shBtype','shSince','shOrigin','shCert'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('shUnit').value = '개';
       loadPosts();
     } else if (res.status === 401) {
       // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우 → 다시 로그인
