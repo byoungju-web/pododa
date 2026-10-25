@@ -1,5 +1,5 @@
-const CACHE_NAME = 'pododa-v37';
-const URLS = ['/', '/index.html', '/manifest.json', '/pd-ui-lang.js'];
+const CACHE_NAME = 'pododa-v40';
+const URLS = ['/', '/index.html', '/manifest.json', '/pd-ui-lang.js', '/pd-trans.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(URLS)));

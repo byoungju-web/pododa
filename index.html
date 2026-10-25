@@ -79,7 +79,13 @@ a{text-decoration:none;color:inherit}
 .nav-item .nav-icon{font-size:22px}
 
 /* 글쓰기 FAB (하단 탭 가운데) */
-.fab-wrap{position:relative;flex:1;display:flex;align-items:center;justify-content:center}
+.fab-wrap{position:relative;flex:0 0 64px;display:flex;align-items:center;justify-content:center}
+/* v38: 하단 탭 6칸 — 가운데 ＋ 를 정확히 가운데에 두려고 양쪽을 같은 너비로 */
+.nav-side{flex:1;display:flex;min-width:0}
+.nav-side .nav-item{min-width:0;white-space:nowrap;letter-spacing:-.3px}
+/* v39: 동시통역톡 화면 틀 (안의 꾸밈은 pd-trans.js) */
+.trans-page{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:100%;background:var(--white);z-index:250;display:none;flex-direction:column}
+.trans-page.show{display:flex}
 .fab{position:absolute;bottom:8px;width:48px;height:48px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:26px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:101;display:flex;align-items:center;justify-content:center}
 
 /* 화면(페이지) */
@@ -348,11 +354,21 @@ a{text-decoration:none;color:inherit}
 
 <!-- ===== 하단 네비게이션 ===== -->
 <div class="bottom-nav">
-  <div class="nav-item active" onclick="goHome()"><div class="nav-icon">🏠</div>홈</div>
-  <div class="nav-item" onclick="openChatList()"><div class="nav-icon">💬</div>채팅</div>
+  <div class="nav-side">
+    <div class="nav-item active" id="navHome" onclick="goHome()"><div class="nav-icon">🏠</div>홈</div>
+    <div class="nav-item" onclick="openChatList()"><div class="nav-icon">💬</div>채팅</div>
+    <div class="nav-item" id="navTrans1" onclick="openTrans('1on1')"><div class="nav-icon">🗣️</div>1:1통역</div>
+  </div>
   <div class="fab-wrap"><button class="fab" onclick="openRegister()">＋</button></div>
-  <div class="nav-item" onclick="showPage('my')"><div class="nav-icon">👤</div>MY</div>
+  <div class="nav-side">
+    <div class="nav-item" id="navTransM" onclick="openTrans('multi')"><div class="nav-icon">👥</div>다중통역</div>
+    <div class="nav-item" id="navMy" onclick="showPage('my')"><div class="nav-icon">👤</div>MY</div>
+  </div>
 </div>
+
+<!-- ===== v39 동시통역톡 (pododa 자체 · 화면은 pd-trans.js 가 그림) ===== -->
+<div class="trans-page" id="transPage"></div>
+<div class="trans-page" id="transRoomPage" style="z-index:251"></div>
 
 <!-- ===== 상세 페이지 ===== -->
 <div class="detail-page" id="detailPage">
@@ -776,7 +792,7 @@ a{text-decoration:none;color:inherit}
     <span class="dtitle">🔒 개인정보 처리방침</span>
   </div>
   <div class="lbs-body">
-<div class="dc-date">시행일 2026년 10월 23일</div>
+<div class="dc-date">시행일 2026년 10월 25일</div>
 <p>커버포(coverfo, 이하 “회사”)는 pododa.kr 이용자의 개인정보를 개인정보 보호법 등 관계 법령에 따라 다음과 같이 처리합니다. 위치정보는 이 방침과 함께 <span onclick="document.getElementById('lbsTermsPage').style.zIndex=270;openLbsTerms()" style="color:var(--pri);cursor:pointer;text-decoration:underline">위치기반서비스 이용약관</span>을 따릅니다.</p>
 <h3>1. 처리하는 개인정보와 목적</h3><table>
 <tr><th>정보</th><th>목적</th><th>수집 시점</th></tr>
@@ -787,6 +803,7 @@ a{text-decoration:none;color:inherit}
 <tr><td>회원이 올린 글: 제목, 내용, 가격, 통화, 사진, 주소, 전화번호, 영업시간, 최소 주문 수량, 회사 정보</td><td>글 게시와 검색 (다른 이용자에게 공개됩니다)</td><td>글을 올릴 때</td></tr>
 <tr><td>글 위치 (약 1km 단위로 줄여 저장)</td><td>글까지의 거리 표시 (다른 이용자에게는 좌표가 아닌 거리만 보여 줍니다)</td><td>글 등록 화면에서 ‘현재 위치’를 직접 누를 때만</td></tr>
 <tr><td>채팅 메시지, 가격 제안, 찜, 알림</td><td>회원 사이 연락과 거래 협의</td><td>이용할 때</td></tr>
+<tr><td>동시통역톡 대화 (말하거나 입력한 원문, 번역문, 닉네임, 고른 언어, 방 참여 기록, 하루 이용 횟수)</td><td>서로 다른 언어 사이의 통역 (내용은 인공지능으로 번역됩니다)</td><td>동시통역톡을 이용할 때</td></tr>
 <tr><td>신고 내용 (신고자, 대상, 사유)</td><td>부정 이용 방지, 게시물 조치</td><td>신고할 때</td></tr>
 <tr><td>위치정보 이용·제공사실 확인자료 (계정 식별값 또는 기기의 무작위 식별값, 취득 경로, 기기 종류, 이용 서비스, 이용 일시)</td><td>위치정보법에 따른 기록·보존</td><td>거리 검색을 이용할 때 자동으로</td></tr>
 <tr><td>접속 기록 (IP 주소, 브라우저 정보, 접속 일시)</td><td>보안, 부정 이용 방지, 장애 대응</td><td>접속할 때 자동으로</td></tr>
@@ -796,6 +813,7 @@ a{text-decoration:none;color:inherit}
 <tr><td>회원 정보</td><td>탈퇴할 때까지 (탈퇴 요청 시 지체 없이 파기)</td></tr>
 <tr><td>글·사진·글 위치</td><td>회원이 삭제하거나 탈퇴할 때까지</td></tr>
 <tr><td>채팅·가격 제안·알림·찜</td><td>탈퇴할 때까지 (상대방에게 보낸 메시지는 상대방 대화방에 남을 수 있음)</td></tr>
+<tr><td>동시통역톡 대화·번역</td><td>30일이 지나면 자동 파기. 통역방(방 이름·참여 기록)은 만든 사람이 삭제할 때까지 보관하며, 삭제하면 그 방의 대화와 함께 즉시 파기 (탈퇴 시 내가 쓴 대화와 내가 만든 통역방도 즉시 파기)</td></tr>
 <tr><td>신고 기록</td><td>처리 완료 후 1년 (분쟁 대응)</td></tr>
 <tr><td>로그인 인증 코드</td><td>10분 (사용하거나 만료되면 지움)</td></tr>
 <tr><td>크레딧 잔액·이용 내역</td><td>탈퇴할 때까지</td></tr>
@@ -806,7 +824,7 @@ a{text-decoration:none;color:inherit}
 <h3>3. 제3자 제공</h3><p>회사는 이용자의 개인정보를 제3자에게 제공하지 않습니다. 다만 회원이 공개로 올린 글과 닉네임은 다른 이용자에게 보이며, 채팅 메시지는 대화 상대방에게 전달됩니다. 법령에 따라 수사기관 등이 적법한 절차로 요청하는 경우에는 예외로 합니다.</p>
 <h3>4. 처리 위탁과 국외 이전</h3><table>
 <tr><th>받는 자 (나라)</th><th>위탁 업무 · 이전 항목</th><th>이전 방법 · 보유 기간</th></tr>
-<tr><td>Cloudflare, Inc. (미국)</td><td>서버 운영, 데이터베이스(회원·글·채팅) 및 사진 저장 · 위 1번 정보 전체</td><td>서비스 이용 시 네트워크로 전송 · 위탁 계약 종료 또는 위 보유 기간까지</td></tr>
+<tr><td>Cloudflare, Inc. (미국)</td><td>서버 운영, 데이터베이스(회원·글·채팅) 및 사진 저장, 동시통역톡 대화의 인공지능 번역(Workers AI) · 위 1번 정보 전체</td><td>서비스 이용 시 네트워크로 전송 · 위탁 계약 종료 또는 위 보유 기간까지</td></tr>
 <tr><td>Google LLC (미국)</td><td>구글 계정 로그인(본인 확인) · 이메일, 이름, 프로필 사진, 계정 식별값</td><td>구글 로그인을 고를 때 네트워크로 전송 · 구글 계정 정책에 따름</td></tr>
 <tr><td>Resend, Inc. (미국)</td><td>로그인 인증 코드 메일 발송 · 이메일 주소, 인증 코드</td><td>이메일 로그인을 요청할 때 네트워크로 전송 · 발송 후 위탁 계약에 따른 기간</td></tr>
 </table><p>국외 이전을 원하지 않으면 회원 가입(로그인)을 하지 않거나 탈퇴할 수 있습니다. 이 경우 글쓰기·채팅 등 로그인이 필요한 기능은 이용할 수 없습니다. 담당 연락처: hasin7jk@gmail.com</p>
@@ -2019,10 +2037,10 @@ function showPage(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (name === 'feed') {
     document.getElementById('pageFeed').classList.add('active');
-    document.querySelectorAll('.nav-item')[0].classList.add('active');
+    document.getElementById('navHome').classList.add('active');
   } else if (name === 'my') {
     document.getElementById('pageMy').classList.add('active');
-    document.querySelectorAll('.nav-item')[2].classList.add('active');
+    document.getElementById('navMy').classList.add('active');
     updateProfile();
     pdRefreshMyCount();
   }
@@ -2718,8 +2736,25 @@ const PD_BACK_LAYERS = [
   ['regPage', () => closeRegister()],
   ['detailPage', () => closeDetail()],
   ['myListPage', () => closeDoc('myListPage')],
-  ['searchPage', () => closeSearch()]
+  ['searchPage', () => closeSearch()],
+  ['transRoomPage', () => window.pdTrans ? pdTrans.closeRoom() : document.getElementById('transRoomPage').classList.remove('show')],
+  ['transPage', () => closeTrans()]
 ];
+
+// ===== v39 동시통역톡: pododa 자체 통역 (pd-trans.js) — 하단 🗣️ 1:1통역 · 👥 다중통역 버튼 =====
+function openTrans(mode) {
+  if (!window.pdTrans) { alert('통역 기능을 불러오지 못했어요. 앱을 완전히 닫았다가 다시 열어 주세요.'); return; }
+  pdTrans.open(mode === 'multi' ? 'multi' : 'one');
+  if (!document.getElementById('transPage').classList.contains('show')) return; // 로그인이 필요해 열리지 않은 경우
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(mode === 'multi' ? 'navTransM' : 'navTrans1').classList.add('active');
+}
+function closeTrans() {
+  if (window.pdTrans) pdTrans.close(); else document.getElementById('transPage').classList.remove('show');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const my = document.getElementById('pageMy').classList.contains('active');
+  document.getElementById(my ? 'navMy' : 'navHome').classList.add('active');
+}
 let pdExitArmed = false;
 // 뒤로가기 기록: 떠 있는 화면 수 + MY 화면 + 종료 확인용 1개 만큼 쌓아 둠
 // (화면이 열릴 때 = 사용자가 누른 직후에 쌓아야 크롬이 건너뛰지 않음)
@@ -2808,5 +2843,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/pd-ui-lang.js"></script>
+<script src="/pd-trans.js"></script>
 </body>
 </html>
