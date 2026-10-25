@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  const VER = 'v40';
+  const VER = 'v41';
   const PRICE = 0.1;      // 다중: 한 마디에 번역되는 언어 하나당
   const KEEP_DAYS = 30;
 
@@ -130,7 +130,18 @@
 .trx-in .mic.rec{background:var(--red);color:#fff;animation:trxPulse 1s infinite}
 .trx-in .snd{background:var(--pri);color:#fff}
 @keyframes trxPulse{50%{opacity:.6}}
-.trx-lsel{max-width:110px;padding:5px 4px;border:1px solid var(--lgray);border-radius:14px;font-size:12.5px;background:var(--white)}`;
+.trx-lsel{max-width:110px;padding:5px 4px;border:1px solid var(--lgray);border-radius:14px;font-size:12.5px;background:var(--white)}
+.trx-sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:260;display:flex;align-items:flex-end;justify-content:center}
+.trx-sheet{width:100%;max-width:480px;background:var(--white);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.trx-sheet h4{font-size:16px;margin-bottom:4px}
+.trx-sheet .sub{font-size:12.5px;color:var(--gray);margin-bottom:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trx-opt{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--lgray);background:var(--white);border-radius:14px;padding:13px 14px;margin-bottom:10px;cursor:pointer}
+.trx-opt .ic{font-size:26px}
+.trx-opt b{display:block;font-size:15px;color:var(--dgray)}
+.trx-opt span{font-size:12.5px;color:var(--gray);line-height:1.45}
+.trx-sheet .cancel{width:100%;border:none;background:#f3f4f6;border-radius:12px;padding:12px;font-size:14px;cursor:pointer}
+#navTrans{position:relative}
+#navTrans .nav-dot{position:absolute;top:6px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:var(--red);border:2px solid var(--white)}`;
     document.head.appendChild(s);
   })();
 
@@ -238,6 +249,7 @@
     $('transRoomPage').classList.remove('show');
     $('transRoomPage').innerHTML = '';
     if (was && $('transPage').classList.contains('show')) loadList();
+    if (was) setTimeout(checkUnread, 300);
   }
   function stopPoll() { if (pollT) clearInterval(pollT); pollT = null; }
 
@@ -448,8 +460,58 @@
   });
   function setNavActive() {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const n = $(kind === 'multi' ? 'navTransM' : 'navTrans1'); if (n) n.classList.add('active');
+    const n = $('navTrans'); if (n) n.classList.add('active');
   }
+
+  /* ───────────── v41 글에서 통역방 열기 ───────────── */
+  // 상점 '채팅하기' → 글쓴이와 1:1 통역방 / 자연 '대화하기' → 1:1 또는 그 글의 다중 이야기방
+  // 방 화면만 띄우므로, 뒤로 가면 보던 글로 돌아간다
+  async function openForPost(post, k) {
+    if (typeof checkLogin === 'function' && !checkLogin()) return;
+    if (!post || !post.id) return;
+    try {
+      toast(k === 'multi' ? '이야기방을 여는 중…' : '통역방을 여는 중…');
+      const j = await api('/trans/post', { post_id: post.id, kind: k === 'multi' ? 'multi' : 'one', lang: myLang() });
+      kind = j.room.kind === 'multi' ? 'multi' : 'one';
+      enterRoom(j.room.id, j.room);
+    } catch (e) { toast(e.message); }
+  }
+  function chooseForPost(post) {
+    if (typeof checkLogin === 'function' && !checkLogin()) return;
+    if (!post || !post.id) return;
+    const old = $('trxSheet'); if (old) old.remove();
+    const mine = (() => { try { return currentUser && String(currentUser.id) === String(post.user_id); } catch (e) { return false; } })();
+    const bg = document.createElement('div');
+    bg.className = 'trx-sheet-bg'; bg.id = 'trxSheet';
+    bg.innerHTML = `<div class="trx-sheet">
+      <h4>💬 어떻게 대화할까요?</h4><div class="sub">${H(post.title || '')}</div>
+      ${mine ? '' : `<button class="trx-opt" data-k="one"><span class="ic">🗣️</span><div><b>1:1 동시통역</b><span>글쓴이와 둘이 대화해요 · 무료</span></div></button>`}
+      <button class="trx-opt" data-k="multi"><span class="ic">👥</span><div><b>다중 동시통역 · 이야기방</b><span>이 글에 관심 있는 여러 사람과 함께 대화해요 · 말할 때 언어당 ${PRICE} 크레딧</span></div></button>
+      <button class="cancel">닫기</button></div>`;
+    bg.addEventListener('click', e => {
+      const o = e.target.closest('.trx-opt');
+      if (o) { bg.remove(); openForPost(post, o.dataset.k); return; }
+      if (e.target === bg || e.target.closest('.cancel')) bg.remove();
+    });
+    document.body.appendChild(bg);
+  }
+
+  /* ───────────── v41 안 읽은 통역 대화 → 하단 통역톡에 빨간 점 ───────────── */
+  async function checkUnread() {
+    try {
+      if (!currentUser || !localStorage.getItem('pd_token') || document.visibilityState !== 'visible') return;
+      const j = await api('/trans/rooms');
+      listCache = j.rooms || listCache;
+      const any = (j.rooms || []).some(r => r.unread && (!room || r.id !== room.id));
+      const nav = $('navTrans');
+      if (!nav) return;
+      let d = nav.querySelector('.nav-dot');
+      if (any && !d) { d = document.createElement('span'); d.className = 'nav-dot'; nav.appendChild(d); }
+      if (!any && d) d.remove();
+    } catch (e) {}
+  }
+  setInterval(checkUnread, 30000);
+  window.addEventListener('load', () => setTimeout(checkUnread, 2500));
 
   // 초대 링크로 앱을 열었고 이미 로그인돼 있으면 바로 물어봄 (로그인 전이면 통역 버튼을 누를 때)
   window.addEventListener('load', () => {
@@ -458,5 +520,5 @@
     }, 800);
   });
 
-  window.pdTrans = { open, close, closeRoom, ver: VER, get kind() { return kind; } };
+  window.pdTrans = { open, close, closeRoom, openForPost, chooseForPost, checkUnread, ver: VER, get kind() { return kind; } };
 })();

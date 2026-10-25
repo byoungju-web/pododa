@@ -86,7 +86,10 @@ a{text-decoration:none;color:inherit}
 /* v39: 동시통역톡 화면 틀 (안의 꾸밈은 pd-trans.js) */
 .trans-page{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:100%;background:var(--white);z-index:250;display:none;flex-direction:column}
 .trans-page.show{display:flex}
-.fab{position:absolute;bottom:8px;width:48px;height:48px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:26px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:101;display:flex;align-items:center;justify-content:center}
+.fab-wrap{cursor:pointer}
+.fab-label{position:absolute;bottom:5px;font-size:10px;color:var(--gray)}
+.nav-svg{height:28px;display:flex;align-items:center;justify-content:center}
+.fab{position:absolute;bottom:20px;width:48px;height:48px;background:var(--pri);color:#fff;border:none;border-radius:50%;font-size:26px;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,.4);z-index:101;display:flex;align-items:center;justify-content:center}
 
 /* 화면(페이지) */
 .page{display:none;min-height:100vh}
@@ -357,11 +360,15 @@ a{text-decoration:none;color:inherit}
   <div class="nav-side">
     <div class="nav-item active" id="navHome" onclick="goHome()"><div class="nav-icon">🏠</div>홈</div>
     <div class="nav-item" onclick="openChatList()"><div class="nav-icon">💬</div>채팅</div>
-    <div class="nav-item" id="navTrans1" onclick="openTrans('1on1')"><div class="nav-icon">🗣️</div>1:1통역</div>
   </div>
-  <div class="fab-wrap"><button class="fab" onclick="openRegister()">＋</button></div>
+  <div class="fab-wrap" onclick="openRegister()"><button class="fab" aria-label="등록">＋</button><span class="fab-label">등록</span></div>
   <div class="nav-side">
-    <div class="nav-item" id="navTransM" onclick="openTrans('multi')"><div class="nav-icon">👥</div>다중통역</div>
+    <div class="nav-item" id="navTrans" onclick="openTrans()"><div class="nav-icon nav-svg"><svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true">
+      <defs><linearGradient id="pdTrG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D28D9"/></linearGradient></defs>
+      <path d="M2.5 4.8A2.8 2.8 0 0 1 5.3 2h8.4a2.8 2.8 0 0 1 2.8 2.8v4.9a2.8 2.8 0 0 1-2.8 2.8H9.2l-3.4 2.7c-.5.4-1.1 0-1.1-.5v-2.2h.6A2.8 2.8 0 0 1 2.5 9.7z" fill="url(#pdTrG)"/>
+      <text x="9.5" y="10.2" text-anchor="middle" font-size="7.6" font-weight="800" fill="#fff" font-family="sans-serif">가</text>
+      <path d="M11 13.6v-.3h3a3.6 3.6 0 0 0 3.6-3.6V7.6h.9a2.8 2.8 0 0 1 2.8 2.8v4.6a2.8 2.8 0 0 1-2.8 2.8h-.4v2c0 .5-.6.8-1 .5l-3.1-2.5h-.2A2.8 2.8 0 0 1 11 15z" fill="#F5F3FF" stroke="#7C3AED" stroke-width="1.2" stroke-linejoin="round"/>
+      <text x="16.3" y="16.3" text-anchor="middle" font-size="6.8" font-weight="800" fill="#6D28D9" font-family="sans-serif">A</text></svg></div>통역톡</div>
     <div class="nav-item" id="navMy" onclick="showPage('my')"><div class="nav-icon">👤</div>MY</div>
   </div>
 </div>
@@ -1886,6 +1893,12 @@ async function loadChatRooms() {
 function startChat() {
   if (!checkLogin()) return;
   if (!viewingPost) return;
+  // v41: 상점 '채팅하기' → 글쓴이와 1:1 통역방 / 자연 '대화하기' → 1:1 또는 다중(이 글의 이야기방) 고르기
+  const cat = Number(viewingPost.category);
+  if ((cat === 1 || cat === 4) && window.pdTrans) {
+    if (cat === 1) pdTrans.openForPost(viewingPost, 'one'); else pdTrans.chooseForPost(viewingPost);
+    return;
+  }
   closeDetail();
   openChatRoom(null, viewingPost.nickname, viewingPost.user_id, viewingPost.id);
 }
@@ -2736,18 +2749,21 @@ const PD_BACK_LAYERS = [
   ['regPage', () => closeRegister()],
   ['detailPage', () => closeDetail()],
   ['myListPage', () => closeDoc('myListPage')],
-  ['searchPage', () => closeSearch()],
+  ['searchPage', () => closeSearch()]
+];
+// v41: 통역톡 화면은 맨 위에 뜨므로(상품 화면 위에서도 열림) 뒤로가기에서 가장 먼저 닫는다
+PD_BACK_LAYERS.unshift(
   ['transRoomPage', () => window.pdTrans ? pdTrans.closeRoom() : document.getElementById('transRoomPage').classList.remove('show')],
   ['transPage', () => closeTrans()]
-];
+);
 
-// ===== v39 동시통역톡: pododa 자체 통역 (pd-trans.js) — 하단 🗣️ 1:1통역 · 👥 다중통역 버튼 =====
+// ===== v41 동시통역톡: pododa 자체 통역 (pd-trans.js) — 하단 '통역톡' 버튼 하나 (안에서 1:1 · 다중 선택) =====
 function openTrans(mode) {
   if (!window.pdTrans) { alert('통역 기능을 불러오지 못했어요. 앱을 완전히 닫았다가 다시 열어 주세요.'); return; }
   pdTrans.open(mode === 'multi' ? 'multi' : 'one');
   if (!document.getElementById('transPage').classList.contains('show')) return; // 로그인이 필요해 열리지 않은 경우
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(mode === 'multi' ? 'navTransM' : 'navTrans1').classList.add('active');
+  document.getElementById('navTrans').classList.add('active');
 }
 function closeTrans() {
   if (window.pdTrans) pdTrans.close(); else document.getElementById('transPage').classList.remove('show');
