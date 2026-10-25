@@ -259,6 +259,17 @@ a{text-decoration:none;color:inherit}
 /* v44: 데스크탑에서도 모든 화면을 홈·MY·통역톡과 같은 폭(가운데 480px)으로.
    (transform 대신 좌우 0 + margin auto 로 가운데 정렬 — 안쪽의 고정 입력칸이 함께 스크롤되지 않게) */
 .detail-page,.reg-page,.chat-list-page,.chat-room-page,.search-page,.login-page,.lbs-page{left:0;right:0;width:100%;max-width:480px;margin:0 auto}
+/* v45: 하부 카테고리 줄 — 마우스용 ‹ › 버튼 (양 끝에 붙어 있음, 넘길 곳이 있을 때만) */
+.hs-arrow{display:none}
+@media (hover:hover) and (pointer:fine){
+  .sub-cats .hs-arrow{position:sticky;z-index:2;flex:none;width:30px;height:28px;border:none;border-radius:50%;background:var(--white);box-shadow:0 1px 4px rgba(0,0,0,.25);font-size:20px;line-height:26px;color:var(--pri);cursor:pointer;padding:0}
+  .sub-cats .hs-arrow.l{left:0;margin-right:-30px}
+  .sub-cats .hs-arrow.r{right:0;margin-left:-30px}
+  .sub-cats.hs-can-l .hs-arrow.l,.sub-cats.hs-can-r .hs-arrow.r{display:block}
+  .sub-cats{cursor:grab}
+  .sub-cats.hs-drag{cursor:grabbing;user-select:none}
+  .sub-cats.hs-drag .sub-cat{pointer-events:none}
+}
 /* v44: 상세 사진은 화면 높이의 45% 까지만 — 사진과 글이 한 화면에 보이게 */
 .detail-images{max-height:45vh}
 </style>
@@ -1191,9 +1202,49 @@ function renderSubCats() {
   const cats = subCats[currentTab] || [];
   if (cats.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'flex';
-  el.innerHTML = cats.map((c, i) =>
+  const keep = el.scrollLeft;
+  el.innerHTML = '<button type="button" class="hs-arrow l" aria-label="왼쪽으로">‹</button>' + cats.map((c, i) =>
     `<div class="sub-cat ${i === 0 && currentSubCat === -1 ? 'active' : (i-1 === currentSubCat ? 'active' : '')}" onclick="selectSubCat(${i === 0 ? -1 : i-1})">${c}</div>`
-  ).join('');
+  ).join('') + '<button type="button" class="hs-arrow r" aria-label="오른쪽으로">›</button>';
+  el.scrollLeft = keep;
+  pdHScroll(el);
+}
+
+// ===== v45 데스크탑(마우스)에서 가로 줄 넘기기: ‹ › 버튼 · 마우스 휠 · 끌기 =====
+// 휴대폰은 손가락으로 밀면 되므로 그대로. 화살표는 마우스가 있는 기기에서만 보임
+function pdHScroll(el) {
+  const upd = () => {
+    const max = el.scrollWidth - el.clientWidth;
+    el.classList.toggle('hs-can-l', el.scrollLeft > 2);
+    el.classList.toggle('hs-can-r', el.scrollLeft < max - 2);
+  };
+  requestAnimationFrame(upd);
+  if (el._hs) return;            // 손잡이는 한 번만 단다 (줄 내용만 다시 그려도 유지)
+  el._hs = true;
+  el.addEventListener('scroll', upd, { passive: true });
+  window.addEventListener('resize', upd);
+  el.addEventListener('click', e => {
+    const a = e.target.closest('.hs-arrow');
+    if (a) { e.stopPropagation(); el.scrollBy({ left: (a.classList.contains('l') ? -1 : 1) * Math.max(160, el.clientWidth * 0.6), behavior: 'smooth' }); }
+  });
+  el.addEventListener('wheel', e => {
+    if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    el.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false });
+  let down = false, sx = 0, sl = 0, moved = false;
+  el.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('.hs-arrow')) return;
+    down = true; moved = false; sx = e.clientX; sl = el.scrollLeft;
+  });
+  window.addEventListener('pointermove', e => {
+    if (!down) return;
+    const dx = e.clientX - sx;
+    if (Math.abs(dx) > 5) { moved = true; el.classList.add('hs-drag'); }
+    if (moved) el.scrollLeft = sl - dx;
+  });
+  window.addEventListener('pointerup', () => { if (!down) return; down = false; setTimeout(() => el.classList.remove('hs-drag'), 0); });
+  // 끌어서 넘긴 뒤 손을 뗄 때 칩이 눌리지 않게
+  el.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
 }
 
 function selectSubCat(idx) {
