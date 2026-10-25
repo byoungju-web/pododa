@@ -132,6 +132,14 @@ a{text-decoration:none;color:inherit}
 .reg-images .img-slot{width:80px;height:80px;border-radius:8px;border:2px dashed var(--lgray);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gray);cursor:pointer;flex:none;overflow:hidden;position:relative}
 .reg-images .img-slot img{width:100%;height:100%;object-fit:cover}
 .reg-images .img-slot .remove{position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+/* v36: 시장 거래 조건 칩 */
+.mk-chips{display:flex;flex-wrap:wrap;gap:6px}
+.mk-chips button{padding:7px 12px;border:1px solid var(--lgray);border-radius:18px;font-size:13px;cursor:pointer;background:var(--white);color:var(--dgray)}
+.mk-chips button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.mk-sub{font-size:12.5px;color:var(--gray);margin:10px 0 6px}
+.mk-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.mk-tag{font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:4px;background:#ede9fe;color:var(--pri);white-space:nowrap}
+.mk-tag.new{background:#dcfce7;color:#15803d}
 .sale-status-btns{display:flex;gap:8px}
 .sale-status-btns button{flex:1;padding:8px;border:1px solid var(--lgray);border-radius:8px;font-size:13px;cursor:pointer;background:var(--white);transition:.2s}
 .sale-status-btns button.active{background:var(--pri);color:#fff;border-color:var(--pri)}
@@ -417,6 +425,47 @@ a{text-decoration:none;color:inherit}
           <option>BRL</option><option>MXN</option><option>TRY</option><option>AED</option>
         </select>
       </div>
+    </div>
+    <!-- v36: 시장 거래 조건 -->
+    <div class="form-group hide" id="regMarketGroup">
+      <label>🛍️ 거래 조건</label>
+      <div class="mk-sub">상품 상태 (하나 선택)</div>
+      <div class="mk-chips" id="mkCond" data-single="1">
+        <button type="button" data-v="새상품(미개봉)">새상품(미개봉)</button>
+        <button type="button" data-v="새상품(개봉)">새상품(개봉)</button>
+        <button type="button" data-v="거의 새것">거의 새것</button>
+        <button type="button" data-v="사용감 적음">사용감 적음</button>
+        <button type="button" data-v="사용감 많음">사용감 많음</button>
+        <button type="button" data-v="고장·부품용">고장·부품용</button>
+      </div>
+      <div class="mk-sub">거래 방법 (여러 개 선택 가능)</div>
+      <div class="mk-chips" id="mkDeal">
+        <button type="button" data-v="직거래">🤝 직거래</button>
+        <button type="button" data-v="택배">📦 택배</button>
+        <button type="button" data-v="편의점택배">🏪 편의점택배</button>
+        <button type="button" data-v="화물">🚚 화물</button>
+      </div>
+      <input type="text" id="mkPlace" class="hide" placeholder="직거래 희망 장소 (예: OO역 2번 출구)" maxlength="60" style="margin-top:8px">
+      <div id="mkShipRow" class="hide" style="display:flex;gap:8px;margin-top:8px">
+        <select id="mkShip" style="flex:1;min-width:0">
+          <option value="">배송비</option><option value="배송비 포함">배송비 포함(무료)</option>
+          <option value="배송비 별도">배송비 별도</option><option value="착불">착불</option>
+        </select>
+        <input type="text" id="mkShipFee" placeholder="배송비 (예: 3,500원)" maxlength="30" style="flex:1;min-width:0">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <select id="mkNego" style="flex:1;min-width:0">
+          <option value="">가격 제안</option><option value="가능">가격 제안 받아요</option><option value="불가">가격 제안 안 받아요</option>
+        </select>
+        <select id="mkSwap" style="flex:1;min-width:0">
+          <option value="">교환</option><option value="가능">교환 가능</option><option value="불가">교환 안 해요</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="mkQty" placeholder="수량 (예: 1개)" maxlength="20" style="flex:1;min-width:0">
+        <input type="text" id="mkBought" placeholder="구매 시기 (예: 2024년 3월)" maxlength="30" style="flex:1;min-width:0">
+      </div>
+      <input type="text" id="mkParts" placeholder="구성품 (예: 박스, 충전기, 보증서 포함)" maxlength="80" style="margin-top:8px">
     </div>
     <div class="form-group">
       <label>설명</label>
@@ -1213,6 +1262,12 @@ function renderPostCard(p, showNationFlag) {
       ${Number(p.category) === 4
         ? `<div style="font-size:13px;color:var(--pri);font-weight:600">🌿 ${esc((subCats[4] || [])[Number(p.sub_cate) + 1] || '이야기')}</div>`
         : `<div class="price">${p.price ? p.price + ' ' + (p.currency||'') : '가격 없음'}</div>`}
+      ${Number(p.category) === 0 ? (() => { // v36: 시장 상품 상태·거래 방법 표시
+        const ex = pdParseExtra(p);
+        const tags = [ex.cond ? `<span class="mk-tag${/^새상품/.test(ex.cond) ? ' new' : ''}">${esc(ex.cond)}</span>` : '']
+          .concat(String(ex.deal || '').split('·').filter(Boolean).map(d => `<span class="mk-tag">${esc(d)}</span>`)).join('');
+        return tags ? `<div class="mk-tags">${tags}</div>` : '';
+      })() : ''}
       <div style="font-size:12px;color:var(--gray)" data-cf-noui="1">${esc(p.address || '')}</div>
       <div class="meta">
         <span>❤️ ${p.like_count||0}</span>
@@ -1270,7 +1325,9 @@ async function openDetail(postId) {
     const isNearby = Number(p.category) === 3, isDeliv = Number(p.category) === 2;
     const isPlace = isNearby || isDeliv; // v33: 배달도 내주변처럼
     const hasAddr = !!String(p.address || '').trim();
-    document.querySelector('#detailBottom .offer-btn').style.display = (isNature || isPlace) ? 'none' : '';
+    // v36: 시장 글에서 '가격 제안 안 받아요'를 고르면 가격제안 버튼도 숨김
+    const noNego = Number(p.category) === 0 && pdParseExtra(p).nego === '불가';
+    document.querySelector('#detailBottom .offer-btn').style.display = (isNature || isPlace || noNego) ? 'none' : '';
     document.getElementById('dRouteBtn').style.display = (isPlace && hasAddr) ? '' : 'none';
     document.querySelector('#detailBottom .chat-btn').textContent = isNature ? '💬 대화하기' : isNearby ? '💬 문의하기' : isDeliv ? '💬 주문·문의' : '💬 채팅하기';
     pdShowMap(isPlace && hasAddr ? p : null);
@@ -1287,7 +1344,15 @@ async function openDetail(postId) {
         .filter(r => r[1]);
       if (rows.length) extra += `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#f7f5fc;font-size:13.5px;line-height:1.8">${rows.map(r => `<div><span style="color:var(--gray)">${r[0]}</span> &nbsp;${esc(r[1])}</div>`).join('')}</div>`;
     }
-    if (Number(p.category) === 1) {
+    if (Number(p.category) === 0) {
+      // v36: 시장 거래 조건 상자
+      const ex = pdParseExtra(p);
+      const ship = [ex.ship, ex.shipfee].filter(Boolean).join(' ');
+      const rows = [['🏷️ 상품 상태', ex.cond], ['🤝 거래 방법', ex.deal], ['📍 직거래 장소', ex.place], ['📦 배송비', ship],
+        ['💬 가격 제안', ex.nego === '가능' ? '받아요' : ex.nego === '불가' ? '안 받아요' : ''], ['🔄 교환', ex.swap === '가능' ? '가능' : ex.swap === '불가' ? '안 해요' : ''],
+        ['🔢 수량', ex.qty], ['🗓️ 구매 시기', ex.bought], ['🎁 구성품', ex.parts]].filter(r => r[1]);
+      if (rows.length) extra += `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#f7f5fc;font-size:13.5px;line-height:1.8">${rows.map(r => `<div><span style="color:var(--gray)">${r[0]}</span> &nbsp;${esc(r[1])}</div>`).join('')}</div>`;
+    } else if (Number(p.category) === 1) {
       // v34: 상점(도매) 정보 상자
       const ex = pdParseExtra(p);
       const rows = [['📦 MOQ', p.moq ? pdNum(p.moq) + (ex.unit || '') : ''], ['📊 수량별 단가', ex.tiers], ['🏭 공급 능력', ex.supply],
@@ -1474,6 +1539,13 @@ function onRegCatChange() {
     : place ? '📝 항목 채우기를 누르면 적을 항목이 나와요.\n대충 써도 ✨ AI 글쓰기가 다듬어 줘요.'
     : '상세 설명을 입력하세요';
   if (place) pdTplLabel();
+  // v36: 시장 = 거래 조건
+  document.getElementById('regMarketGroup').classList.toggle('hide', cat !== 0);
+  if (cat === 0) {
+    document.querySelector('#regPage .rtitle').textContent = '🏪 시장 판매 등록';
+    document.getElementById('regTitle').placeholder = '예: 아이폰 15 128GB 블루';
+    document.getElementById('regBody').placeholder = '상품 설명: 사용 기간, 흠집·고장 여부, 판매 이유 등을 적어 주세요.';
+  }
   // v34: 상점 = 도매 단가 범위
   const shop = cat === 1;
   document.getElementById('shTilde').classList.toggle('hide', !shop);
@@ -1580,6 +1652,30 @@ function renderRegImages() {
 }
 function removeImage(i) { regImageFiles.splice(i,1); renderRegImages(); }
 
+// ===== v36 시장: 거래 조건 칩 =====
+document.addEventListener('click', e => {
+  const b = e.target.closest('.mk-chips button');
+  if (!b) return;
+  const box = b.parentElement;
+  if (box.dataset.single) {
+    const was = b.classList.contains('on');
+    box.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+    if (!was) b.classList.add('on');
+  } else b.classList.toggle('on');
+  if (box.id === 'mkDeal') mkDealChanged();
+});
+function mkChipVals(id) { return [...document.querySelectorAll('#' + id + ' button.on')].map(b => b.dataset.v); }
+function mkDealChanged() {
+  const d = mkChipVals('mkDeal');
+  document.getElementById('mkPlace').classList.toggle('hide', !d.includes('직거래'));
+  document.getElementById('mkShipRow').classList.toggle('hide', !d.some(x => x !== '직거래'));
+}
+function mkReset() {
+  document.querySelectorAll('#regMarketGroup .mk-chips button').forEach(b => b.classList.remove('on'));
+  ['mkPlace','mkShip','mkShipFee','mkNego','mkSwap','mkQty','mkBought','mkParts'].forEach(id => { document.getElementById(id).value = ''; });
+  mkDealChanged();
+}
+
 function setSaleStatus(s, btn) {
   regSaleStatus = s;
   document.querySelectorAll('.sale-status-btns button').forEach(b => b.classList.remove('active'));
@@ -1607,6 +1703,17 @@ async function submitPost() {
   formData.append('moq', document.getElementById('regMoq').value);
   formData.append('company_info', document.getElementById('regCompany').value);
   formData.append('sale_status', regSaleStatus);
+  // v36: 시장 거래 조건 (서버 pd_posts.extra 에 JSON 으로 저장)
+  if (cat === 0) {
+    const v = id => document.getElementById(id).value.trim();
+    const deal = mkChipVals('mkDeal');
+    const ex = { cond: mkChipVals('mkCond')[0] || '', deal: deal.join('·'),
+      place: deal.includes('직거래') ? v('mkPlace') : '',
+      ship: deal.some(x => x !== '직거래') ? v('mkShip') : '', shipfee: deal.some(x => x !== '직거래') ? v('mkShipFee') : '',
+      nego: v('mkNego'), swap: v('mkSwap'), qty: v('mkQty'), bought: v('mkBought'), parts: v('mkParts') };
+    Object.keys(ex).forEach(k => { if (!ex[k]) delete ex[k]; });
+    if (Object.keys(ex).length) formData.append('extra', JSON.stringify(ex));
+  }
   // v34: 상점(도매) 정보 (서버 pd_posts.extra 에 JSON 으로 저장, 최대 12개 항목)
   if (cat === 1) {
     const v = id => document.getElementById(id).value.trim();
@@ -1643,6 +1750,7 @@ async function submitPost() {
       ['dlArea','dlMin','dlFee','dlTime','dlPickup','dlPay','dlEvent',
        'regMoq','regCompany','shPmax','shTiers','shSupply','shSample','shOem','shLead','shShip','shBtype','shSince','shOrigin','shCert'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('shUnit').value = '개';
+      mkReset();
       loadPosts();
     } else if (res.status === 401) {
       // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우 → 다시 로그인
