@@ -229,6 +229,40 @@ a{text-decoration:none;color:inherit}
 .empty .empty-icon{font-size:48px;margin-bottom:12px}
 
 /* 위치기반서비스 이용약관 */
+/* v51 내 가게 관리 */
+.sh-tabs{display:flex;gap:6px;padding:10px 12px;position:sticky;top:48px;background:var(--bg,#f5f5f5);z-index:5}
+.sh-tabs button{flex:1;padding:10px 0;border:1.5px solid var(--lgray);border-radius:12px;background:var(--white);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;color:var(--dgray)}
+.sh-tabs button.on{border-color:var(--pri);background:var(--pri);color:#fff}
+.sh-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 12px 10px}
+.sh-sum div{background:var(--white);border-radius:12px;padding:10px 4px;text-align:center}
+.sh-sum b{display:block;font-size:18px;color:var(--pri)}
+.sh-sum span{font-size:11.5px;color:var(--gray)}
+.sh-sec{margin:12px 12px 6px;font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px}
+.sh-filter{display:flex;gap:6px;margin:0 12px 8px;overflow-x:auto}
+.sh-filter button{flex:none;padding:6px 12px;border-radius:16px;border:1px solid var(--lgray);background:var(--white);font-size:13px;cursor:pointer;font-family:inherit}
+.sh-filter button.on{background:var(--dgray,#333);color:#fff;border-color:var(--dgray,#333)}
+.sh-item{background:var(--white);border-radius:14px;margin:0 12px 10px;padding:12px}
+.sh-top{display:flex;gap:10px;cursor:pointer}
+.sh-top img,.sh-top .noimg{width:64px;height:64px;border-radius:10px;object-fit:cover;background:var(--lgray);flex:none;display:flex;align-items:center;justify-content:center;font-size:24px}
+.sh-title{font-weight:700;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-price{font-weight:800;font-size:14px;margin-top:2px}
+.sh-meta{font-size:12px;color:var(--gray);margin-top:3px}
+.sh-st{display:flex;gap:5px;margin-top:10px}
+.sh-st button{flex:1;padding:7px 0;border-radius:10px;border:1.5px solid var(--lgray);background:var(--white);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--gray)}
+.sh-st button.on{border-color:var(--pri);color:var(--pri);background:#f5f0ff}
+.sh-act{display:flex;gap:5px;margin-top:6px}
+.sh-act button{flex:1;padding:8px 0;border-radius:10px;border:0;background:#f3f4f6;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--dgray)}
+.sh-act button:disabled{opacity:.45;cursor:default}
+.sh-act .del{color:var(--red)}
+.sh-off{background:var(--white);border-radius:14px;margin:0 12px 8px;padding:10px 12px;font-size:13px}
+.sh-off .btns{display:flex;gap:6px;margin-top:8px}
+.sh-off .btns button{flex:1;padding:8px 0;border-radius:10px;border:0;font-weight:700;cursor:pointer;font-family:inherit}
+.sh-tip{background:#f7f5fc;border-radius:14px;margin:12px;padding:12px 14px;font-size:12.5px;line-height:1.7;color:var(--dgray)}
+.sh-edit{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.sh-edit.show{display:flex}
+.sh-edit .box{background:var(--white);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px;max-height:88vh;overflow-y:auto}
+.sh-edit label{display:block;font-size:12.5px;font-weight:700;margin:10px 0 4px}
+.sh-edit input,.sh-edit textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--lgray);border-radius:10px;font-size:14px;font-family:inherit}
 .lbs-page{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--white);z-index:260;overflow-y:auto;display:none}
 .lbs-page.show{display:block}
 .lbs-body{padding:16px 16px 40px;font-size:13.5px;line-height:1.7;color:#333}
@@ -353,6 +387,7 @@ a{text-decoration:none;color:inherit}
       </div>
       <div class="profile-menu" style="padding-bottom:120px">
         <div class="menu-item" onclick="showMyPosts()"><span class="mi-icon">📝</span>내 게시글</div>
+        <div class="menu-item" onclick="openShop()"><span class="mi-icon">🏪</span>내 가게 관리 <span style="margin-left:auto;font-size:11.5px;color:#999">시장 · 상점 · 배달</span></div>
         <div class="menu-item" onclick="showMyLikes()"><span class="mi-icon">❤️</span>찜 목록</div>
         <div class="menu-item" onclick="openChatList()"><span class="mi-icon">💬</span>채팅</div>
         <div class="menu-item" onclick="openCredits()"><span class="mi-icon">💜</span>내 크레딧 <span id="myCreditBadge" style="margin-left:auto;color:var(--pri);font-weight:700"></span></div>
@@ -971,6 +1006,34 @@ a{text-decoration:none;color:inherit}
   </div>
 </div>
 
+<!-- ===== v51 내 가게 관리 (판매자용: 시장 · 상점 · 배달) ===== -->
+<div class="lbs-page" id="shopPage" style="z-index:190;background:var(--bg)">
+  <div class="detail-header">
+    <span class="back" onclick="closeDoc('shopPage')">←</span>
+    <span class="dtitle">🏪 내 가게 관리</span>
+    <span onclick="shopLoad()" style="margin-left:auto;font-size:20px;cursor:pointer;padding:4px 8px" title="새로고침">🔄</span>
+  </div>
+  <div class="sh-tabs">
+    <button type="button" data-shc="0" onclick="shopTab(0)">🏪 시장</button>
+    <button type="button" data-shc="1" onclick="shopTab(1)">🏬 상점</button>
+    <button type="button" data-shc="2" onclick="shopTab(2)">🛵 배달</button>
+  </div>
+  <div id="shopBody"></div>
+  <div class="sh-edit" id="shopEdit" onclick="if(event.target===this)shopEditClose()">
+    <div class="box">
+      <div style="display:flex;align-items:center"><b style="font-size:16px">✏️ 글 고치기</b><span onclick="shopEditClose()" style="margin-left:auto;font-size:22px;cursor:pointer">✕</span></div>
+      <label>제목</label><input id="seTitle" maxlength="100">
+      <label id="sePriceL">가격 (숫자만, 비우면 '가격 문의')</label><input id="sePrice" inputmode="decimal" maxlength="40">
+      <div id="seMoqG"><label>최소 주문 수량 (MOQ)</label><input id="seMoq" maxlength="40"></div>
+      <div id="seDelivG"><label>전화번호</label><input id="sePhone" inputmode="tel" maxlength="40"><label>영업시간</label><input id="seHours" maxlength="100" placeholder="예: 매일 11:00~21:00"></div>
+      <label>내용</label><textarea id="seBody" rows="7" maxlength="5000"></textarea>
+      <p style="font-size:12px;color:var(--gray)">사진·주소·카테고리는 여기서 바꿀 수 없어요. 바꾸려면 글을 지우고 새로 올려 주세요.</p>
+      <div id="seMsg" style="min-height:18px;font-size:13px;color:var(--red)"></div>
+      <button type="button" onclick="shopEditSave()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#7C3AED;color:#fff;font-size:15px;font-weight:800;cursor:pointer">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== v49 고객센터 · 문의 ===== -->
 <div class="lbs-page" id="supportPage">
   <div class="detail-header">
@@ -1408,11 +1471,14 @@ function pdShopPrice(p, ex) {
   const range = lo && hi && pdNum(lo) !== pdNum(hi) ? `${pdNum(lo)}-${pdNum(hi)}` : pdNum(lo || hi);
   return sym ? sym + range : `${range} ${esc(p.currency || '')}`;
 }
+// v51 판매 상태 이름 (카테고리마다)
+const PD_STATUS = { 0: ['판매중', '예약중', '거래완료'], 1: ['판매중', '재고 적음', '품절'], 2: ['영업중', '준비중', '영업 종료'] };
+function pdStatusText(cat, st) { return (PD_STATUS[Number(cat)] || PD_STATUS[0])[Number(st) || 0]; }
 function renderShopCard(p) {
   const ex = pdParseExtra(p);
   let img = ''; try { img = p.images ? JSON.parse(p.images)[0] : ''; } catch (e) {}
-  const status = p.sale_status === 1 ? '<span class="s-badge" style="background:#fef3c7;color:#b45309">예약중</span>'
-    : p.sale_status === 2 ? '<span class="s-badge" style="background:#e5e7eb;color:#555">거래완료</span>' : '';
+  const status = p.sale_status === 1 ? `<span class="s-badge" style="background:#fef3c7;color:#b45309">${pdStatusText(p.category, 1)}</span>`
+    : p.sale_status === 2 ? `<span class="s-badge" style="background:#e5e7eb;color:#555">${pdStatusText(p.category, 2)}</span>` : '';
   const badges = [status,
     ex.btype ? `<span class="s-badge">${esc(ex.btype)}</span>` : '',
     ex.oem && ex.oem !== '불가' ? `<span class="s-badge g">${esc(ex.oem)}</span>` : '',
@@ -1434,7 +1500,7 @@ function renderShopCard(p) {
 function renderPostCard(p, showNationFlag) {
   const img = p.images ? JSON.parse(p.images)[0] : '';
   const statusClass = p.sale_status === 1 ? 'status-reserved' : p.sale_status === 2 ? 'status-done' : '';
-  const statusText = p.sale_status === 1 ? '예약중' : p.sale_status === 2 ? '거래완료' : '';
+  const statusText = p.sale_status === 1 || p.sale_status === 2 ? pdStatusText(p.category, p.sale_status) : '';
   const nationFlag = showNationFlag && p.nation_code && p.nation_code !== currentNation ? getNationFlag(p.nation_code) : '';
   return `<div class="post-card" onclick="openDetail(${p.id})">
     <img class="thumb" src="${img || ''}" loading="lazy" onerror="this.style.background='var(--lgray)';this.src=''">
@@ -1495,8 +1561,8 @@ async function openDetail(postId) {
       </div>`;
     // 상태
     const sb = document.getElementById('detailStatusBadge');
-    sb.innerHTML = p.sale_status === 1 ? '<span class="status-badge status-reserved" style="margin-top:12px">예약중</span>'
-      : p.sale_status === 2 ? '<span class="status-badge status-done" style="margin-top:12px">거래완료</span>' : '';
+    sb.innerHTML = p.sale_status === 1 ? '<span class="status-badge status-reserved" style="margin-top:12px">' + pdStatusText(p.category, 1) + '</span>'
+      : p.sale_status === 2 ? '<span class="status-badge status-done" style="margin-top:12px">' + pdStatusText(p.category, 2) + '</span>' : '';
     document.getElementById('dTitle').textContent = p.title;
     const isNature = Number(p.category) === 4;
     document.getElementById('dPrice').textContent = isNature ? ''
@@ -1981,6 +2047,7 @@ async function submitPost() {
       document.getElementById('shUnit').value = '개';
       mkReset();
       loadPosts();
+      if (document.getElementById('shopPage').classList.contains('show')) shopLoad();   // v51 내 가게 관리에서 올렸으면 목록 새로고침
     } else if (res.status === 401) {
       // 화면은 로그인 상태인데 서버가 pododa 로그인 표(토큰)를 인정하지 않은 경우 → 다시 로그인
       localStorage.removeItem('pd_token');
@@ -2893,7 +2960,7 @@ async function wdSubmit() {
 // ===== v49 고객센터 · 사업자 정보 · 앱 정보 · 구독 관리 =====
 // 통신판매업 신고번호를 받으면 아래 '' 안에 적기만 하면 사업자 정보 · 이용약관에 함께 나와요 (예: '제2026-서울송파-0000호')
 const PD_MAIL_ORDER_NO = '';
-const PD_APP_VER = 'v50';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
+const PD_APP_VER = 'v51';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
 function pdFillInfo() {
   document.querySelectorAll('.pdMoNo').forEach((el) => { el.textContent = PD_MAIL_ORDER_NO || '신고 처리 중 (번호를 받으면 바로 표시해요)'; });
   document.querySelectorAll('.pdVer').forEach((el) => { el.textContent = PD_APP_VER; });
@@ -2945,6 +3012,142 @@ function pdSubLine(j) {
 document.addEventListener('DOMContentLoaded', pdFillInfo);
 if (document.readyState !== 'loading') pdFillInfo();
 
+// ===== v51 내 가게 관리 (판매자용: 시장 · 상점 · 배달) =====
+let shopCat = 0, shopData = null, shopFilter = -1, shopEditing = null;
+const SHOP_NAME = ['시장', '상점', '배달'];
+const SHOP_TIPS = {
+  0: ['📸 사진은 3장 이상, 밝은 곳에서 찍으면 더 빨리 팔려요.', '💰 가격을 꼭 적어 주세요. 가격이 있는 글을 더 많이 봐요.', '⬆️ 하루에 한 번 끌어올리면 목록 맨 위로 올라가요.', '🤝 약속이 잡히면 ‘예약중’, 팔리면 ‘거래완료’로 바꿔 주세요. 같은 문의가 줄어요.'],
+  1: ['📦 최소 주문 수량(MOQ)과 수량별 가격을 적으면 도매 문의가 늘어요.', '🏭 회사 소개·인증(KC, CE 등)을 적으면 믿고 연락해요.', '⬆️ 하루에 한 번 끌어올리면 목록 맨 위로 올라가요.', '📉 재고가 얼마 안 남으면 ‘재고 적음’, 다 팔리면 ‘품절’로 바꿔 주세요.'],
+  2: ['⏰ 영업시간과 전화번호를 꼭 적어 주세요.', '🛵 배달 지역·최소 주문 금액·배달비를 적으면 주문 문의가 쉬워요.', '🔔 쉬는 날이나 재료가 떨어지면 ‘준비중’, 다시 열면 ‘영업중’으로 바꿔 주세요.', '⬆️ 하루에 한 번 끌어올리면 목록 맨 위로 올라가요.']
+};
+async function shopApi(path, body) {
+  const go = () => fetch(API + path, body ? { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify(body) } : { headers: authHeaders() });
+  let r = await go();
+  if (r.status === 401 && typeof refreshToken === 'function' && await refreshToken()) r = await go();
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) throw new Error('로그인이 만료됐어요. 다시 로그인해 주세요.');
+  if (!r.ok || j.ok === false) throw new Error(j.message || j.error || r.status);
+  return j;
+}
+function openShop(cat) {
+  if (!checkLogin()) return;
+  openDoc('shopPage');
+  shopTab(cat != null ? cat : (currentTab >= 0 && currentTab <= 2 ? currentTab : 0));
+}
+function shopTab(c) {
+  shopCat = c; shopFilter = -1;
+  document.querySelectorAll('#shopPage [data-shc]').forEach((b) => b.classList.toggle('on', Number(b.dataset.shc) === c));
+  shopLoad();
+}
+async function shopLoad() {
+  const body = document.getElementById('shopBody');
+  body.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try {
+    shopData = await shopApi('/me/shop?cat=' + shopCat);
+    shopRender();
+  } catch (e) { body.innerHTML = '<div class="empty">불러오지 못했어요: ' + esc(String(e.message)) + '</div>'; }
+}
+function shopPriceText(p) {
+  if (shopCat === 1) return pdShopPrice(p, pdParseExtra(p));
+  return p.price ? pdNum(p.price) + ' ' + esc(p.currency || '') : '가격 없음';
+}
+function shopRender() {
+  const body = document.getElementById('shopBody');
+  const posts = shopData.posts || [], offers = shopData.offers || [];
+  const L = PD_STATUS[shopCat];
+  const sum = (k) => posts.reduce((a, p) => a + (Number(p[k]) || 0), 0);
+  const cnt = [0, 1, 2].map((s) => posts.filter((p) => (Number(p.sale_status) || 0) === s).length);
+  const waiting = offers.filter((o) => Number(o.status) === 0).length;
+  let h = '<div class="sh-sum"><div><b>' + posts.length + '</b><span>올린 글</span></div><div><b>' + sum('view_count') + '</b><span>조회</span></div><div><b>' + sum('like_count') + '</b><span>찜</span></div><div><b>' + sum('chat_count') + '</b><span>채팅</span></div></div>';
+  h += '<div style="margin:0 12px 8px;font-size:12.5px;color:var(--gray)">' + L.map((n, i) => n + ' ' + cnt[i]).join(' · ') + (shopCat !== 2 ? ' · 답할 가격 제안 <b style="color:' + (waiting ? 'var(--red)' : 'inherit') + '">' + waiting + '</b>' : '') + '</div>';
+  h += '<button type="button" onclick="shopNewPost()" style="display:block;width:calc(100% - 24px);margin:0 12px 6px;padding:12px;border:0;border-radius:12px;background:#7C3AED;color:#fff;font-size:15px;font-weight:800;cursor:pointer">＋ ' + SHOP_NAME[shopCat] + '에 새 글 올리기</button>';
+  // 받은 가격 제안 (시장·상점)
+  if (shopCat !== 2 && offers.length) {
+    h += '<div class="sh-sec">💰 받은 가격 제안' + (waiting ? ' <span style="background:var(--red);color:#fff;border-radius:10px;font-size:11.5px;padding:1px 8px">' + waiting + '</span>' : '') + '</div>';
+    h += offers.slice(0, 20).map((o) => {
+      const st = Number(o.status) || 0;
+      return '<div class="sh-off"><b>' + esc(o.buyer_nick || '회원') + '</b> 님 · <b style="color:var(--pri)">' + esc(pdNum(o.price)) + ' ' + esc(o.currency || '') + '</b><br><span style="color:var(--gray);font-size:12px">' + esc(o.post_title || '') + (o.created_at ? ' · ' + esc(timeAgo(o.created_at)) : '') + '</span>'
+        + (st === 0 ? '<div class="btns"><button type="button" style="background:var(--pri);color:#fff" onclick="shopOffer(' + o.id + ',\'accept\')">수락</button><button type="button" style="background:#f3f4f6" onclick="shopOffer(' + o.id + ',\'decline\')">거절</button><button type="button" style="background:#f3f4f6" onclick="openDetail(' + o.post_id + ')">글 보기</button></div>'
+          : '<div style="margin-top:6px;font-size:12.5px;font-weight:700;color:' + (st === 1 ? 'var(--pri)' : 'var(--gray)') + '">' + (st === 1 ? '✓ 수락했어요 — 채팅으로 거래를 이어가세요' : '거절했어요') + '</div>') + '</div>';
+    }).join('');
+  }
+  // 내 글
+  h += '<div class="sh-sec">📋 내 ' + SHOP_NAME[shopCat] + ' 글</div>';
+  h += '<div class="sh-filter">' + [-1, 0, 1, 2].map((s) => '<button type="button" class="' + (shopFilter === s ? 'on' : '') + '" onclick="shopFilter=' + s + ';shopRender()">' + (s < 0 ? '전체 ' + posts.length : L[s] + ' ' + cnt[s]) + '</button>').join('') + '</div>';
+  const list = posts.filter((p) => shopFilter < 0 || (Number(p.sale_status) || 0) === shopFilter);
+  if (!list.length) h += '<div class="empty" style="padding:30px 0"><div class="empty-icon">📭</div>' + (posts.length ? '이 상태의 글이 없어요' : '아직 ' + SHOP_NAME[shopCat] + '에 올린 글이 없어요') + '</div>';
+  h += list.map((p) => {
+    let img = ''; try { img = p.images ? JSON.parse(p.images)[0] : ''; } catch (e) {}
+    const st = Number(p.sale_status) || 0;
+    const bumpLabel = p.bump_ok ? '⬆️ 끌어올리기' : '⬆️ ' + shopLeft(p.bump_next) + ' 뒤';
+    return '<div class="sh-item"><div class="sh-top" onclick="openDetail(' + p.id + ')">'
+      + (img ? '<img src="' + esc(img) + '" loading="lazy" onerror="this.outerHTML=\'<div class=&quot;noimg&quot;>📦</div>\'">' : '<div class="noimg">📦</div>')
+      + '<div style="flex:1;min-width:0"><div class="sh-title" data-cf-noui="1">' + esc(p.title) + '</div><div class="sh-price">' + shopPriceText(p) + '</div>'
+      + '<div class="sh-meta">👁 ' + (p.view_count || 0) + ' · ❤️ ' + (p.like_count || 0) + ' · 💬 ' + (p.chat_count || 0) + ' · ' + esc(timeAgo(p.created_at)) + '</div></div></div>'
+      + '<div class="sh-st">' + L.map((n, i) => '<button type="button" class="' + (st === i ? 'on' : '') + '" onclick="shopStatus(' + p.id + ',' + i + ')">' + n + '</button>').join('') + '</div>'
+      + '<div class="sh-act"><button type="button" onclick="shopBump(' + p.id + ')"' + (p.bump_ok ? '' : ' disabled') + '>' + bumpLabel + '</button><button type="button" onclick="shopEditOpen(' + p.id + ')">✏️ 고치기</button><button type="button" class="del" onclick="shopDelete(' + p.id + ')">🗑 지우기</button></div></div>';
+  }).join('');
+  h += '<div class="sh-tip"><b>💡 ' + SHOP_NAME[shopCat] + ' 잘 되는 팁</b><br>' + SHOP_TIPS[shopCat].join('<br>') + '</div><div style="height:40px"></div>';
+  body.innerHTML = h;
+}
+function shopLeft(iso) {
+  const ms = Date.parse(iso) - Date.now();
+  if (!(ms > 0)) return '곧';
+  const hr = Math.floor(ms / 3600000), mi = Math.ceil((ms % 3600000) / 60000);
+  return hr ? hr + '시간' : mi + '분';
+}
+function shopPost(id) { return (shopData.posts || []).find((p) => p.id === id); }
+async function shopStatus(id, st) {
+  const p = shopPost(id); if (!p || Number(p.sale_status) === st) return;
+  try { await shopApi('/me/posts/' + id, { action: 'status', sale_status: st }); p.sale_status = st; shopRender(); pdToast('‘' + pdStatusText(shopCat, st) + '’(으)로 바꿨어요'); }
+  catch (e) { alert(e.message); }
+}
+async function shopBump(id) {
+  try { await shopApi('/me/posts/' + id, { action: 'bump' }); pdToast('⬆️ 목록 맨 위로 올렸어요'); await shopLoad(); try { loadPosts(); } catch (e) {} }
+  catch (e) { alert(e.message); }
+}
+async function shopDelete(id) {
+  const p = shopPost(id); if (!p) return;
+  if (!confirm('‘' + p.title + '’ 글을 지울까요? 지우면 되살릴 수 없어요.')) return;
+  try { await shopApi('/me/posts/' + id, { action: 'delete' }); pdToast('글을 지웠어요'); await shopLoad(); try { loadPosts(); } catch (e) {} }
+  catch (e) { alert(e.message); }
+}
+async function shopOffer(id, act) {
+  if (act === 'accept' && !confirm('이 가격 제안을 수락할까요? 제안한 분에게 알림이 가요.')) return;
+  try { await shopApi('/me/offers/' + id, { action: act }); pdToast(act === 'accept' ? '수락했어요. 채팅으로 거래를 이어가세요' : '거절했어요'); await shopLoad(); }
+  catch (e) { alert(e.message); }
+}
+function shopEditOpen(id) {
+  const p = shopPost(id); if (!p) return;
+  shopEditing = id;
+  document.getElementById('seTitle').value = p.title || '';
+  document.getElementById('sePrice').value = p.price || '';
+  document.getElementById('seBody').value = p.body || '';
+  document.getElementById('seMoq').value = p.moq || '';
+  document.getElementById('sePhone').value = p.phone || '';
+  document.getElementById('seHours').value = p.opening_hours || '';
+  document.getElementById('seMoqG').style.display = shopCat === 1 ? 'block' : 'none';
+  document.getElementById('seDelivG').style.display = shopCat === 2 ? 'block' : 'none';
+  document.getElementById('sePriceL').textContent = shopCat === 2 ? '대표 가격 (숫자만, 비워도 돼요)' : '가격 (숫자만, 비우면 ‘가격 문의’)';
+  document.getElementById('seMsg').textContent = '';
+  document.getElementById('shopEdit').classList.add('show');
+}
+function shopEditClose() { document.getElementById('shopEdit').classList.remove('show'); shopEditing = null; }
+async function shopEditSave() {
+  const p = shopPost(shopEditing); if (!p) return;
+  const v = (id) => document.getElementById(id).value.trim();
+  const body = { action: 'edit', title: v('seTitle'), price: v('sePrice').replace(/,/g, ''), body: v('seBody'),
+    moq: shopCat === 1 ? v('seMoq') : (p.moq || ''), phone: shopCat === 2 ? v('sePhone') : (p.phone || ''), opening_hours: shopCat === 2 ? v('seHours') : (p.opening_hours || '') };
+  if (!body.title) { document.getElementById('seMsg').textContent = '제목을 적어 주세요'; return; }
+  try { await shopApi('/me/posts/' + p.id, body); shopEditClose(); pdToast('고쳤어요'); await shopLoad(); try { loadPosts(); } catch (e) {} }
+  catch (e) { document.getElementById('seMsg').textContent = e.message; }
+}
+function shopNewPost() {
+  openRegister();
+  const sel = document.getElementById('regCat');
+  if (sel) { sel.value = shopCat; onRegCatChange(); }
+}
+
 // ===== 휴대폰 뒤로가기 =====
 // 위에 떠 있는 화면부터 하나씩 닫음 (위에 있는 것이 먼저)
 const PD_BACK_LAYERS = [
@@ -2969,6 +3172,8 @@ const PD_BACK_LAYERS = [
   ['regPage', () => closeRegister()],
   ['detailPage', () => closeDetail()],
   ['myListPage', () => closeDoc('myListPage')],
+  ['shopEdit', () => shopEditClose()],
+  ['shopPage', () => closeDoc('shopPage')],
   ['searchPage', () => closeSearch()]
 ];
 // v41: 통역톡 화면은 맨 위에 뜨므로(상품 화면 위에서도 열림) 뒤로가기에서 가장 먼저 닫는다
