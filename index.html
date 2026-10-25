@@ -915,6 +915,19 @@ a{text-decoration:none;color:inherit}
   <div id="myListBody" style="padding:4px 0 24px"></div>
 </div>
 
+<!-- ===== v50 구독 관리 (월 구독 요금제 · 지금 구독 · 해지) — 요금제 카드는 pd-pay.js 가 그림 ===== -->
+<div class="lbs-page" id="subPage">
+  <div class="detail-header">
+    <span class="back" onclick="closeDoc('subPage')">←</span>
+    <span class="dtitle">💳 구독 관리</span>
+  </div>
+  <div class="lbs-body" style="max-width:460px;margin:0 auto">
+    <p id="subBal" style="font-size:13px;color:var(--gray);margin:4px 0 10px"></p>
+    <div id="crBuyBox"></div>
+    <div id="subMsg" style="min-height:20px;font-size:13px;margin:8px 0"></div>
+  </div>
+</div>
+
 <!-- ===== 내 크레딧 (v25: pododa 전용) ===== -->
 <div class="lbs-page" id="creditPage">
   <div class="detail-header">
@@ -928,9 +941,9 @@ a{text-decoration:none;color:inherit}
       <div id="crSplit" style="font-size:12.5px;opacity:.9"></div>
     </div>
     <p style="font-size:12px;color:var(--gray);margin-top:10px">pododa에서만 쓰는 크레딧이에요. coverfo·포도톡 크레딧과는 따로예요. <b>무료</b> 크레딧은 환불되지 않고, <b>유료</b> 크레딧은 남은 만큼 환불 신청할 수 있어요. <b>구글 결제</b>(월 구독)로 받은 크레딧은 구글 플레이를 통해 환불돼요. 쓸 때는 무료 → 구글 결제 → 유료 순서로 빠져요.</p>
-    <!-- v47: 월 구독 (구글 플레이 앱 안에서 구글 결제) — 내용은 pd-pay.js 가 그림 -->
+    <!-- v50: 월 구독 요금제는 '구독 관리' 화면으로 옮김 — 여기는 요약만 -->
     <h3>월 구독</h3>
-    <div id="crBuyBox"></div>
+    <div id="crSubLine" onclick="openSubManage()" style="display:flex;align-items:center;gap:8px;padding:12px 14px;border:1.5px solid var(--lgray);border-radius:14px;cursor:pointer;font-size:13.5px"></div>
     <h3>환불 신청</h3>
     <div id="crRefundBox" style="font-size:13px"></div>
     <h3>이용 내역</h3>
@@ -2739,7 +2752,7 @@ async function pdCreditBadge() {
     document.getElementById('adminCreditMenu').style.display = j.is_admin ? '' : 'none';
   } catch (e) {}
 }
-function crMsg(t, err) { const m = document.getElementById('crMsg'); m.textContent = t || ''; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
+function crMsg(t, err) { const sp = document.getElementById('subPage'); const m = document.getElementById(sp && sp.classList.contains('show') ? 'subMsg' : 'crMsg'); m.textContent = t || ''; m.style.color = err ? 'var(--red)' : 'var(--pri)'; }
 async function openCredits() {
   if (!checkLogin()) return;
   openDoc('creditPage'); crMsg('불러오는 중…');
@@ -2748,8 +2761,7 @@ async function openCredits() {
     document.getElementById('crTotal').textContent = fmtCr(j.total);
     document.getElementById('crSplit').textContent = '무료 ' + fmtCr(j.free) + ' · 구글 결제 ' + fmtCr(j.play) + ' · 유료 ' + fmtCr(j.paid);
     document.getElementById('myCreditBadge').textContent = fmtCr(j.total);
-    if (window.pdPay) pdPay.render(j);   // v47 월 구독 요금제
-    else document.getElementById('crBuyBox').innerHTML = '<p style="color:var(--gray)">충전 화면을 불러오지 못했어요. 앱을 완전히 닫았다가 다시 열어 주세요.</p>';
+    pdSubLine(j);   // v50 월 구독 요약 (요금제는 '구독 관리' 화면)
     const pend = (j.refunds || []).find((x) => x.status === 'requested');
     const box = document.getElementById('crRefundBox');
     let h = '';
@@ -2881,7 +2893,7 @@ async function wdSubmit() {
 // ===== v49 고객센터 · 사업자 정보 · 앱 정보 · 구독 관리 =====
 // 통신판매업 신고번호를 받으면 아래 '' 안에 적기만 하면 사업자 정보 · 이용약관에 함께 나와요 (예: '제2026-서울송파-0000호')
 const PD_MAIL_ORDER_NO = '';
-const PD_APP_VER = 'v49';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
+const PD_APP_VER = 'v50';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
 function pdFillInfo() {
   document.querySelectorAll('.pdMoNo').forEach((el) => { el.textContent = PD_MAIL_ORDER_NO || '신고 처리 중 (번호를 받으면 바로 표시해요)'; });
   document.querySelectorAll('.pdVer').forEach((el) => { el.textContent = PD_APP_VER; });
@@ -2906,12 +2918,29 @@ function pdMailSupport() {
   const body = '문의 내용:\n\n\n\n----\n' + who + '앱 버전: ' + PD_APP_VER + ' (' + (pdIsPlayApp() ? '플레이 앱' : '웹') + ')';
   location.href = 'mailto:hasin7jk@gmail.com?subject=' + encodeURIComponent('[pododa 문의] ') + '&body=' + encodeURIComponent(body);
 }
-// 구독 관리: 내 크레딧 화면의 '월 구독' 칸으로 바로 이동 (구독 중이면 구글 플레이 구독 관리 · 해지 링크가 있음)
+// v50 구독 관리 화면: 지금 구독 · 요금제 4개 · 구글 플레이 해지 링크 (요금제 카드는 pd-pay.js)
 async function openSubManage() {
   if (!checkLogin()) return;
-  await openCredits();
-  const box = document.getElementById('crBuyBox');
-  if (box && box.previousElementSibling) box.previousElementSibling.scrollIntoView({ block: 'start' });
+  openDoc('subPage'); crMsg('불러오는 중…');
+  try {
+    const j = await pdCredits(); crMsg('');
+    document.getElementById('subBal').innerHTML = '지금 남은 크레딧 <b style="color:var(--pri)">' + fmtCr(j.total) + '</b> · 결제된 달마다 요금제 크레딧이 들어오고, 남은 크레딧은 다음 달로 넘어가요.';
+    document.getElementById('myCreditBadge').textContent = fmtCr(j.total);
+    if (window.pdPay) pdPay.render(j);
+    else document.getElementById('crBuyBox').innerHTML = '<p style="color:var(--gray)">구독 화면을 불러오지 못했어요. 앱을 완전히 닫았다가 다시 열어 주세요.</p>';
+  } catch (e) { crMsg(e.message, true); }
+}
+// 내 크레딧 화면의 '월 구독' 한 줄 요약
+function pdSubLine(j) {
+  const el = document.getElementById('crSubLine'); if (!el) return;
+  const s = (j.subs || [])[0];
+  let txt;
+  if (!s) txt = '구독하지 않았어요';
+  else {
+    const st = { SUBSCRIPTION_STATE_CANCELED: '해지 예정', SUBSCRIPTION_STATE_IN_GRACE_PERIOD: '결제 확인 필요', SUBSCRIPTION_STATE_ON_HOLD: '결제 보류', SUBSCRIPTION_STATE_PAUSED: '일시 중지', SUBSCRIPTION_STATE_PENDING: '결제 처리 중' }[s.state] || '구독 중';
+    txt = '<b>매월 ' + fmtCr(s.credits) + ' 크레딧</b> · ' + st;
+  }
+  el.innerHTML = '<span style="font-size:18px">💳</span><span style="flex:1">' + txt + '</span><span style="color:var(--pri);font-weight:700;white-space:nowrap">구독 관리 ›</span>';
 }
 document.addEventListener('DOMContentLoaded', pdFillInfo);
 if (document.readyState !== 'loading') pdFillInfo();
@@ -2927,6 +2956,7 @@ const PD_BACK_LAYERS = [
   ['bizPage', () => closeDoc('bizPage')],
   ['appInfoPage', () => closeDoc('appInfoPage')],
   ['adminCreditPage', () => closeDoc('adminCreditPage')],
+  ['subPage', () => closeDoc('subPage')],
   ['creditPage', () => closeDoc('creditPage')],
   ['termsPage', () => closeDoc('termsPage')],
   ['notiModal', () => closeNoti()],
@@ -3051,6 +3081,6 @@ if ('serviceWorker' in navigator) {
 <script src="/pd-ui-lang.js"></script>
 <!-- v43: 주소에 버전을 붙여 휴대폰이 옛 파일을 쓰지 않게 함. pd-trans.js 를 고칠 때마다 이 숫자와 sw.js 의 숫자를 같이 올림 -->
 <script src="/pd-trans.js?v=42"></script>
-<script src="/pd-pay.js?v=47"></script>
+<script src="/pd-pay.js?v=48"></script>
 </body>
 </html>

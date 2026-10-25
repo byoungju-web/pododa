@@ -1,5 +1,5 @@
 /* =====================================================================
-   pododa 크레딧 월 구독 — pd-pay.js (v47)
+   pododa 크레딧 월 구독 — pd-pay.js (v48: '구독 관리' 화면에 그림)
    · 구글 플레이에서 받은 pododa 앱 안에서만 구독 (구글 결제, 한 달마다 자동 결제)
      - Digital Goods API 로 요금제·가격을 구글에서 받아 오고
      - Payment Request API 로 구글 결제창을 띄운 뒤
@@ -12,7 +12,7 @@
    ===================================================================== */
 (function () {
   'use strict';
-  const VER = 'v47';
+  const VER = 'v48';
   // 서버(PLAY_PLANS_LIST)와 같은 표 — 크레딧 수는 서버가 최종으로 정함
   const PLANS = [
     { id: 'monthly_100', credits: 100, won: 9900 },
@@ -155,7 +155,7 @@
       if (j.ok) {
         alert(`💜 구독을 시작했어요! 이번 달 ${Number(j.granted || 0).toLocaleString('ko-KR')} 크레딧이 들어왔어요.${j.sub && j.sub.test ? '\n(테스트 결제)' : ''}\n다음 달부터 결제될 때마다 자동으로 들어와요.`);
         busy = false;
-        try { openCredits(); } catch (e) {}
+        try { (window.openSubManage || openCredits)(); } catch (e) {}
         return;
       }
       if (j.pending) msg(j.message || '결제가 아직 처리 중이에요. 완료되면 크레딧 화면을 다시 열어 주세요.');
@@ -181,7 +181,7 @@
       }
     } catch (e) {}
     recovering = false;
-    if (got > 0) { alert(`💜 구독 크레딧 ${got.toLocaleString('ko-KR')}개를 받았어요.`); try { openCredits(); } catch (e) {} }
+    if (got > 0) { alert(`💜 구독 크레딧 ${got.toLocaleString('ko-KR')}개를 받았어요.`); try { (window.openSubManage || openCredits)(); } catch (e) {} }
   }
 
   document.addEventListener('click', e => {
