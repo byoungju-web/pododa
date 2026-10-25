@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "team.bongboard.vimusay",
+      "sha256_cert_fingerprints": [
+        "82:5C:9A:F2:6A:2F:94:0B:57:D1:E3:12:D1:E6:CA:1A:FB:A5:09:95:10:F6:D9:63:62:F0:80:9D:72:49:4D:98"
+      ]
+    }
+  }
+]
