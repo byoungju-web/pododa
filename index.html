@@ -132,6 +132,12 @@ a{text-decoration:none;color:inherit}
 .reg-images .img-slot{width:80px;height:80px;border-radius:8px;border:2px dashed var(--lgray);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gray);cursor:pointer;flex:none;overflow:hidden;position:relative}
 .reg-images .img-slot img{width:100%;height:100%;object-fit:cover}
 .reg-images .img-slot .remove{position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+/* v37: 상단 탭 좌우 밀기 */
+@keyframes pdSlideL{from{opacity:.3;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes pdSlideR{from{opacity:.3;transform:translateX(-40px)}to{opacity:1;transform:none}}
+#pageFeed.slide-l{animation:pdSlideL .22s ease-out}
+#pageFeed.slide-r{animation:pdSlideR .22s ease-out}
+#pageFeed{touch-action:pan-y}
 /* v36: 시장 거래 조건 칩 */
 .mk-chips{display:flex;flex-wrap:wrap;gap:6px}
 .mk-chips button{padding:7px 12px;border:1px solid var(--lgray);border-radius:18px;font-size:13px;cursor:pointer;background:var(--white);color:var(--dgray)}
@@ -1519,7 +1525,7 @@ function onRegCatChange() {
   const nature = cat === 4, nearby = cat === 3, deliv = cat === 2;
   const place = nearby || deliv; // v33: 배달도 내주변처럼 (주소 자동·지도·항목 채우기·AI)
   document.getElementById('regPriceGroup').classList.toggle('hide', nature);
-  document.getElementById('regAiBox').classList.toggle('hide', !nature && !place);
+  document.getElementById('regAiBox').classList.remove('hide'); // v37: 시장·상점 포함 모든 카테고리에서 AI 글쓰기
   document.getElementById('regTplBox').classList.toggle('hide', !place);
   document.getElementById('regMapChk').classList.toggle('hide', !place);
   document.getElementById('regDeliveryGroup').classList.toggle('hide', !deliv);
@@ -1601,6 +1607,25 @@ async function regCheckMap() {
   } catch (e) { m.style.color = 'var(--red)'; m.textContent = '확인하지 못했어요. 잠시 후 다시 눌러 주세요.'; }
 }
 
+// v37: 등록 화면에서 고른 조건을 AI 에 함께 보냄 (AI 가 지어내지 않고 사실로만 쓰게)
+function pdAiDetails(cat) {
+  const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const parts = [];
+  const add = (label, val) => { if (val) parts.push(label + ': ' + val); };
+  add('가격', v('regPrice') ? v('regPrice') + ' ' + v('regCurrency') : '');
+  if (cat === 0) {
+    add('상품 상태', mkChipVals('mkCond')[0]); add('거래 방법', mkChipVals('mkDeal').join('·'));
+    add('구성품', v('mkParts')); add('구매 시기', v('mkBought')); add('교환', v('mkSwap'));
+  } else if (cat === 1) {
+    add('최고 단가', v('shPmax')); add('MOQ', v('regMoq') ? v('regMoq') + v('shUnit') : ''); add('수량별 단가', v('shTiers'));
+    add('공급 능력', v('shSupply')); add('샘플', v('shSample')); add('맞춤 제작', v('shOem')); add('생산·출고', v('shLead'));
+    add('업체 유형', v('shBtype')); add('원산지', v('shOrigin')); add('인증', v('shCert'));
+  } else if (cat === 2) {
+    add('배달 지역', v('dlArea')); add('최소 주문', v('dlMin')); add('이벤트', v('dlEvent'));
+  }
+  return parts.join(' / ');
+}
+
 // ===== 자연: 무료 AI 글쓰기 (서버의 Cloudflare Workers AI 사용) =====
 async function aiWrite() {
   if (!checkLogin()) return;
@@ -1614,7 +1639,7 @@ async function aiWrite() {
   msg.style.color = 'var(--gray)'; msg.textContent = '잠시만 기다려 주세요 (5~15초)';
   try {
     const cat = parseInt(document.getElementById('regCat').value);
-    const body = JSON.stringify({ cat, kind, title: tEl.value.trim(), body: bEl.value.trim(), address: document.getElementById('regAddress').value.trim(), lang: currentLang, nation: currentNation });
+    const body = JSON.stringify({ cat, kind, title: tEl.value.trim(), body: bEl.value.trim(), address: document.getElementById('regAddress').value.trim(), details: pdAiDetails(cat), lang: currentLang, nation: currentNation });
     const opt = () => ({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body });
     let r = await fetch(`${API}/ai/write`, opt());
     if (r.status === 401 && await refreshToken()) r = await fetch(`${API}/ai/write`, opt());
@@ -1651,6 +1676,35 @@ function renderRegImages() {
   if (regImageFiles.length < 8) el.innerHTML += '<div class="img-slot" onclick="addImage()">＋</div>';
 }
 function removeImage(i) { regImageFiles.splice(i,1); renderRegImages(); }
+
+// ===== v37 상단 탭(시장·상점·배달·내주변·자연) 좌우로 밀어서 넘기기 =====
+// 목록 화면에서만 동작. 세부 카테고리 줄은 따로 있는 칸이라 영향 없음
+(function pdTabSwipe() {
+  const el = document.getElementById('pageFeed');
+  if (!el) return;
+  let sx = 0, sy = 0, st = 0, on = false;
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { on = false; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); on = true;
+  }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!on) return; on = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    // 가로로 충분히(70px↑), 세로보다 확실히 더 많이, 0.7초 안에 민 경우만
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || Date.now() - st > 700) return;
+    if (!el.classList.contains('active')) return;
+    const next = currentTab + (dx < 0 ? 1 : -1); // 왼쪽으로 밀면 다음 탭
+    if (next < 0 || next > 4) return;
+    switchTab(next);
+    el.classList.remove('slide-l', 'slide-r'); void el.offsetWidth;
+    el.classList.add(dx < 0 ? 'slide-l' : 'slide-r');
+    const tab = document.querySelectorAll('.tab-item')[next];
+    if (tab && tab.scrollIntoView) tab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    window.scrollTo(0, 0);
+  }, { passive: true });
+  el.addEventListener('animationend', () => el.classList.remove('slide-l', 'slide-r'));
+})();
 
 // ===== v36 시장: 거래 조건 칩 =====
 document.addEventListener('click', e => {
