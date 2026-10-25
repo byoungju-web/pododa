@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  const VER = 'v41';
+  const VER = 'v42';
   const PRICE = 0.1;      // 다중: 한 마디에 번역되는 언어 하나당
   const KEEP_DAYS = 30;
 
@@ -466,34 +466,64 @@
   /* ───────────── v41 글에서 통역방 열기 ───────────── */
   // 상점 '채팅하기' → 글쓴이와 1:1 통역방 / 자연 '대화하기' → 1:1 또는 그 글의 다중 이야기방
   // 방 화면만 띄우므로, 뒤로 가면 보던 글로 돌아간다
+  const isMine = post => { try { return !!currentUser && String(currentUser.id) === String(post.user_id); } catch (e) { return false; } };
+  // 오류는 2초짜리 안내 대신 창으로 확실히 보여 줌 (v42)
+  function showErr(e) {
+    if (e && e.status === 404 && e.code === 'not_found') {
+      alert('통역 서버가 아직 옛 버전이에요.\nCloudflare 에서 pododa-api 워커를 새 파일로 다시 올려(Deploy) 주세요.');
+    } else alert((e && e.message) || '통역방을 열지 못했어요. 잠시 뒤 다시 눌러 주세요.');
+  }
   async function openForPost(post, k) {
     if (typeof checkLogin === 'function' && !checkLogin()) return;
     if (!post || !post.id) return;
+    if (k !== 'multi' && isMine(post)) { ownPostSheet(post); return; }   // 내 글: 나에게 온 대화 목록
     try {
       toast(k === 'multi' ? '이야기방을 여는 중…' : '통역방을 여는 중…');
       const j = await api('/trans/post', { post_id: post.id, kind: k === 'multi' ? 'multi' : 'one', lang: myLang() });
       kind = j.room.kind === 'multi' ? 'multi' : 'one';
       enterRoom(j.room.id, j.room);
-    } catch (e) { toast(e.message); }
+    } catch (e) { showErr(e); }
+  }
+  function sheet(html, onPick) {
+    const old = $('trxSheet'); if (old) old.remove();
+    const bg = document.createElement('div');
+    bg.className = 'trx-sheet-bg'; bg.id = 'trxSheet';
+    bg.innerHTML = `<div class="trx-sheet">${html}<button class="cancel">닫기</button></div>`;
+    bg.addEventListener('click', e => {
+      const o = e.target.closest('.trx-opt');
+      if (o) { bg.remove(); onPick(o); return; }
+      if (e.target === bg || e.target.closest('.cancel')) bg.remove();
+    });
+    document.body.appendChild(bg);
+    return bg;
   }
   function chooseForPost(post) {
     if (typeof checkLogin === 'function' && !checkLogin()) return;
     if (!post || !post.id) return;
-    const old = $('trxSheet'); if (old) old.remove();
-    const mine = (() => { try { return currentUser && String(currentUser.id) === String(post.user_id); } catch (e) { return false; } })();
-    const bg = document.createElement('div');
-    bg.className = 'trx-sheet-bg'; bg.id = 'trxSheet';
-    bg.innerHTML = `<div class="trx-sheet">
-      <h4>💬 어떻게 대화할까요?</h4><div class="sub">${H(post.title || '')}</div>
-      ${mine ? '' : `<button class="trx-opt" data-k="one"><span class="ic">🗣️</span><div><b>1:1 동시통역</b><span>글쓴이와 둘이 대화해요 · 무료</span></div></button>`}
-      <button class="trx-opt" data-k="multi"><span class="ic">👥</span><div><b>다중 동시통역 · 이야기방</b><span>이 글에 관심 있는 여러 사람과 함께 대화해요 · 말할 때 언어당 ${PRICE} 크레딧</span></div></button>
-      <button class="cancel">닫기</button></div>`;
-    bg.addEventListener('click', e => {
-      const o = e.target.closest('.trx-opt');
-      if (o) { bg.remove(); openForPost(post, o.dataset.k); return; }
-      if (e.target === bg || e.target.closest('.cancel')) bg.remove();
-    });
-    document.body.appendChild(bg);
+    if (isMine(post)) { ownPostSheet(post, true); return; }
+    sheet(`<h4>💬 어떻게 대화할까요?</h4><div class="sub">${H(post.title || '')}</div>
+      <button class="trx-opt" data-k="one"><span class="ic">🗣️</span><div><b>1:1 동시통역</b><span>글쓴이와 둘이 대화해요 · 무료</span></div></button>
+      <button class="trx-opt" data-k="multi"><span class="ic">👥</span><div><b>다중 동시통역 · 이야기방</b><span>이 글에 관심 있는 여러 사람과 함께 대화해요 · 말할 때 언어당 ${PRICE} 크레딧</span></div></button>`,
+      o => openForPost(post, o.dataset.k));
+  }
+  // v42: 내 글에서 채팅하기·대화하기 → 이 글로 나에게 온 1:1 대화들 (+ 자연은 이야기방 열기)
+  async function ownPostSheet(post, withStory) {
+    const bg = sheet(`<h4>📬 내 글에 온 대화</h4><div class="sub">${H(post.title || '')}</div><div id="trxOwnList"><div class="trx-empty" style="padding:14px 0">불러오는 중…</div></div>`,
+      o => {
+        if (o.dataset.k === 'multi') { openForPost(post, 'multi'); return; }
+        const r = listCache.find(x => x.id === o.dataset.id);
+        kind = 'one'; enterRoom(o.dataset.id, r ? { name: r.name, code: r.code, kind: r.kind } : null);
+      });
+    let rooms = [];
+    try { const j = await api('/trans/rooms'); listCache = j.rooms || []; rooms = listCache.filter(r => String(r.post_id) === String(post.id) && r.kind === 'one'); }
+    catch (e) { const box = bg.querySelector('#trxOwnList'); if (box) box.innerHTML = `<div class="trx-empty" style="padding:14px 0">${H(e.status === 404 ? '통역 서버가 아직 옛 버전이에요. pododa-api 워커를 다시 올려 주세요.' : e.message)}</div>`; return; }
+    const box = bg.querySelector('#trxOwnList');
+    if (!box) return;
+    box.innerHTML = (rooms.length ? rooms.map(r => `<button class="trx-opt" data-id="${H(r.id)}"><span class="ic">🗣️</span><div>
+        <b>${H(r.peer_nick || '상대')}${r.unread ? ' <span style="color:var(--red)">●</span>' : ''}</b>
+        <span>${H(r.last_text ? (r.last_nick ? r.last_nick + ': ' : '') + r.last_text : '아직 대화가 없어요')}</span></div></button>`).join('')
+      : `<div class="trx-empty" style="padding:10px 0 16px">아직 이 글로 대화를 건 사람이 없어요.<br>누가 ${withStory ? '대화하기' : '채팅하기'}를 누르면 여기와 <b>통역톡</b>에 나타나요.</div>`)
+      + (withStory ? `<button class="trx-opt" data-k="multi"><span class="ic">👥</span><div><b>이 글의 이야기방 열기</b><span>다중 동시통역 · 이 글에 관심 있는 사람들과 함께</span></div></button>` : '');
   }
 
   /* ───────────── v41 안 읽은 통역 대화 → 하단 통역톡에 빨간 점 ───────────── */
@@ -520,5 +550,5 @@
     }, 800);
   });
 
-  window.pdTrans = { open, close, closeRoom, openForPost, chooseForPost, checkUnread, ver: VER, get kind() { return kind; } };
+  window.pdTrans = { open, close, closeRoom, openForPost, chooseForPost, ownPostSheet, checkUnread, ver: VER, get kind() { return kind; } };
 })();
