@@ -256,6 +256,11 @@ a{text-decoration:none;color:inherit}
 
 /* 유틸 */
 .hide{display:none!important}
+/* v44: 데스크탑에서도 모든 화면을 홈·MY·통역톡과 같은 폭(가운데 480px)으로.
+   (transform 대신 좌우 0 + margin auto 로 가운데 정렬 — 안쪽의 고정 입력칸이 함께 스크롤되지 않게) */
+.detail-page,.reg-page,.chat-list-page,.chat-room-page,.search-page,.login-page,.lbs-page{left:0;right:0;width:100%;max-width:480px;margin:0 auto}
+/* v44: 상세 사진은 화면 높이의 45% 까지만 — 사진과 글이 한 화면에 보이게 */
+.detail-images{max-height:45vh}
 </style>
 </head>
 <body>
