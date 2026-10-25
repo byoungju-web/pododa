@@ -20,16 +20,16 @@ input,textarea,select,[contenteditable="true"]{-webkit-user-select:text;user-sel
 #postList.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px}
 #postList.shop-grid > :not(.shop-card){grid-column:1/-1}
 .shop-card{background:var(--white);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer;display:flex;flex-direction:column;min-width:0}
-.shop-card .s-img{width:100%;aspect-ratio:1/1;object-fit:cover;background:var(--lgray);display:block}
-.shop-card .s-info{padding:8px 9px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
-.shop-card .s-badges{display:flex;gap:4px;flex-wrap:wrap}
-.shop-card .s-badge{font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#ede9fe;color:var(--pri)}
+.shop-card .s-img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--lgray);display:block}
+.shop-card .s-info{padding:6px 8px 8px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.shop-card .s-badges{display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden}
+.shop-card .s-badge{font-size:10px;font-weight:700;padding:0 5px;border-radius:4px;background:#ede9fe;color:var(--pri);white-space:nowrap}
 .shop-card .s-badge.g{background:#dcfce7;color:#15803d}
-.shop-card .s-title{font-size:13.5px;line-height:1.35;color:var(--dgray);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
-.shop-card .s-price{font-size:16px;font-weight:800;color:var(--dgray);word-break:break-all}
-.shop-card .s-moq{font-size:11.5px;font-weight:500;color:var(--gray);white-space:nowrap}
+.shop-card .s-title{font-size:13px;line-height:1.3;color:var(--dgray);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
+.shop-card .s-price{font-size:15px;font-weight:800;color:var(--dgray);word-break:break-all;line-height:1.3}
+.shop-card .s-moq{font-size:11px;font-weight:500;color:var(--gray);white-space:nowrap}
 .shop-card .s-noimg{display:flex;align-items:center;justify-content:center;font-size:40px;color:#bbb}
-.shop-card .s-meta{font-size:11.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shop-card .s-meta{font-size:11px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .shop-card .s-meta b{color:var(--pri)}
 .tpl-btn{padding:6px 12px;border:1px solid var(--pri);border-radius:16px;font-size:12.5px;color:var(--pri);background:var(--white);cursor:pointer;margin:6px 6px 0 0}
 a{text-decoration:none;color:inherit}
@@ -1196,8 +1196,7 @@ function renderShopCard(p) {
       <div class="s-title" data-cf-noui="1">${esc(p.title)}</div>
       <div class="s-price">${pdShopPrice(p, ex)}</div>
       ${p.moq ? `<div class="s-moq">MOQ: ${esc(pdNum(p.moq))}${ex.unit ? esc(ex.unit) : ''}</div>` : ''}
-      ${meta ? `<div class="s-meta">${meta}</div>` : ''}
-      <div class="s-meta">❤️ ${p.like_count||0} · 💬 ${p.chat_count||0} · 👁 ${p.view_count||0}</div>
+      <div class="s-meta">${meta ? meta + ' · ' : ''}❤️${p.like_count||0} 👁${p.view_count||0}</div>
     </div>
   </div>`;
 }
