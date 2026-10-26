@@ -3086,7 +3086,7 @@ async function wdSubmit() {
 // ===== v49 고객센터 · 사업자 정보 · 앱 정보 · 구독 관리 =====
 // 통신판매업 신고번호를 받으면 아래 '' 안에 적기만 하면 사업자 정보 · 이용약관에 함께 나와요 (예: '제2026-서울송파-0000호')
 const PD_MAIL_ORDER_NO = '';
-const PD_APP_VER = 'v55';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
+const PD_APP_VER = 'v56';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
 function pdFillInfo() {
   document.querySelectorAll('.pdMoNo').forEach((el) => { el.textContent = PD_MAIL_ORDER_NO || '신고 처리 중 (번호를 받으면 바로 표시해요)'; });
   document.querySelectorAll('.pdVer').forEach((el) => { el.textContent = PD_APP_VER; });
@@ -3198,9 +3198,11 @@ function pdVoiceSearch() {
 // v54 웹에서 찾은 결과 (pododa 서버가 위키백과 · DuckDuckGo · 날씨 · 식품 정보 등을 함께 찾아 섞어 줌)
 // v55 '넓게 찾기'(Brave 일반 웹 결과): 켜면 검색 1번에 0.1 크레딧 — 다중 동시통역처럼 크레딧에서 빠짐 (결과를 받았을 때만)
 let pdWebQ = '';
+// v56: 넓게 찾기 가격은 서버(WEB_CREDIT)가 알려 준 값을 보여 줌 (처음엔 지난번 값, 없으면 0.1)
+let pdWebCost = (() => { try { return parseFloat(localStorage.getItem('pd_web_cost')) || 0.1; } catch (e) { return 0.1; } })();
 function pdWideOn() { try { return localStorage.getItem('pd_web_wide') === '1'; } catch (e) { return false; } }
 function pdWebHead() {
-  return '<div class="ws-head"><span>🌐 웹에서 찾은 결과</span><label class="ws-wide"><input type="checkbox" id="wsWide"' + (pdWideOn() ? ' checked' : '') + ' onchange="pdWideToggle(this.checked)"> 넓게 찾기 <small>0.1 크레딧</small></label></div>';
+  return '<div class="ws-head"><span>🌐 웹에서 찾은 결과</span><label class="ws-wide"><input type="checkbox" id="wsWide"' + (pdWideOn() ? ' checked' : '') + ' onchange="pdWideToggle(this.checked)"> 넓게 찾기 <small>' + fmtCr(pdWebCost) + ' 크레딧</small></label></div>';
 }
 function pdWideToggle(on) {
   try { localStorage.setItem('pd_web_wide', on ? '1' : '0'); } catch (e) {}
@@ -3225,6 +3227,7 @@ async function pdWebResults(q, my) {
         + (x.snippet ? '<div class="ws-s">' + esc(x.snippet) + '</div>' : '') + '</a>').join('')
       : '<div style="padding:10px 16px;font-size:13px;color:var(--gray)">웹에서 찾은 결과가 없어요. 아래 버튼으로 더 찾아보세요.</div>';
     const pd = j.paid || {};
+    if (pd.cost) { pdWebCost = pd.cost; try { localStorage.setItem('pd_web_cost', String(pd.cost)); } catch (e) {} }
     if (wide) {
       if (pd.charged) { note = '넓게 찾기 · ' + pd.cost + ' 크레딧 사용 · 남은 크레딧 ' + fmtCr(pd.left); try { document.getElementById('myCreditBadge').textContent = fmtCr(pd.left); } catch (e) {} }
       else if (pd.state === 'login') note = '넓게 찾기는 <a href="javascript:void(0)" onclick="closeSearch();document.getElementById(\'loginPage\').classList.add(\'show\')">로그인</a>하면 쓸 수 있어요. 지금은 무료 결과만 보여요.';
