@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pododa-v57';
+const CACHE_NAME = 'pododa-v58';
 const URLS = ['/', '/index.html', '/manifest.json', '/pd-ui-lang.js', '/pd-trans.js?v=42', '/pd-pay.js?v=48'];
 
 self.addEventListener('install', e => {
