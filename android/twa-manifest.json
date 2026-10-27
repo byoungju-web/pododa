@@ -37,7 +37,7 @@
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://pododa.kr/",
-  "minSdkVersion": 23,
+  "minSdkVersion": 24,
   "fingerprints": [],
   "additionalTrustedOrigins": [],
   "retainedBundles": []
