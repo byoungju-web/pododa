@@ -696,6 +696,7 @@ a{text-decoration:none;color:inherit}
     <span class="back" onclick="closeChatList()">←</span>
     <span class="dtitle">채팅</span>
   </div>
+  <div style="padding:8px 14px;font-size:12px;color:var(--gray);background:#f7f5fc">🔒 채팅 메시지는 보낸 지 90일이 지나면 자동으로 지워져요.</div>
   <div id="chatRoomList"></div>
   <div class="empty hide" id="chatEmpty">
     <div class="empty-icon">💬</div>
@@ -795,7 +796,7 @@ a{text-decoration:none;color:inherit}
 <h3>제5조 (수집·이용 목적과 보유기간)</h3><table>
 <tr><th>정보</th><th>목적</th><th>보유기간</th></tr>
 <tr><td>현재 위치 (내주변·시장·상점·배달 거리 검색)</td><td>주변 글 검색</td><td>검색 요청을 처리한 즉시 파기하며 서버에 저장하지 않습니다. 이용자의 기기(브라우저)에만 남고 이용자가 언제든 지울 수 있습니다.</td></tr>
-<tr><td>글 위치 (약 1km 단위)</td><td>내주변·시장·상점·배달 거리 검색에서 글까지의 거리 표시</td><td>글이 삭제되거나 글쓴이가 탈퇴하면 함께 파기합니다.</td></tr>
+<tr><td>글 위치 (약 1km 단위)</td><td>내주변·시장·상점·배달 거리 검색에서 글까지의 거리 표시</td><td>글이 삭제되거나 글쓴이가 탈퇴하면 함께 파기합니다. 시장(개인 중고거래) 글의 위치는 ‘거래완료’로 바꾸거나 180일 동안 수정·끌어올리기가 없으면 먼저 파기합니다.</td></tr>
 <tr><td>위치정보 이용·제공사실 확인자료 (이용자 식별값, 취득경로, 서비스, 이용 일시)</td><td>위치정보법에 따른 기록·보존</td><td>자동으로 기록하며 1년간 보관한 뒤 파기합니다.</td></tr>
 <tr><td>이용 국가 (coverfo.com)</td><td>화면 언어와 연결 서비스 선택</td><td>기기 안에서 판별합니다. 입력한 문장을 인공지능으로 분류할 때만 국가 코드(예: KR)를 서버로 보내며 저장하지 않습니다.</td></tr>
 </table>
@@ -879,6 +880,7 @@ a{text-decoration:none;color:inherit}
 <h3>제8조 (게시물의 권리와 책임)</h3><ul>
 <li>게시물의 저작권은 그것을 만든 회원에게 있으며, 게시물에 대한 책임도 회원에게 있습니다.</li>
 <li>회원은 서비스 운영·표시·검색(다른 이용자에게 보여 주기, 크기 조정, 번역 등)에 필요한 범위에서 회사가 게시물을 무상으로 이용하는 것을 허락합니다. 게시물을 삭제하면 이 허락도 끝납니다.</li>
+<li>개인정보를 오래 두지 않기 위해, ‘거래완료·품절·영업 종료’로 바꾼 지 30일이 지난 글과 보낸 지 90일이 지난 채팅 메시지는 자동으로 삭제됩니다. 필요한 내용은 그 전에 따로 보관해 주세요.</li>
 <li>회사는 게시물이 법령이나 이 약관을 어기거나 다른 사람의 권리를 침해한다고 판단되면 알리지 않고 숨기거나 삭제할 수 있습니다. 권리를 침해당한 사람은 신고 기능이나 아래 연락처로 삭제를 요청할 수 있습니다.</li></ul>
 <h3>제9조 (이용 제한)</h3><p>회사는 회원이 제7조를 어기면 경고, 게시물 삭제, 일정 기간 이용 정지, 영구 이용 정지 등의 조치를 할 수 있습니다. 회원은 조치에 대해 아래 연락처로 이의를 신청할 수 있습니다.</p>
 <h3>제10조 (서비스의 변경·중단)</h3><p>회사는 운영상·기술상 필요에 따라 서비스의 전부 또는 일부를 바꾸거나 중단할 수 있으며, 미리 서비스 안에 알립니다. 천재지변, 설비 장애, 외부 클라우드 사업자의 장애 등 부득이한 경우에는 사후에 알릴 수 있습니다.</p>
@@ -911,7 +913,7 @@ a{text-decoration:none;color:inherit}
 <p>커버포(coverfo, 이하 “회사”)는 pododa.kr 이용자의 개인정보를 개인정보 보호법 등 관계 법령에 따라 다음과 같이 처리합니다. 위치정보는 이 방침과 함께 <span onclick="document.getElementById('lbsTermsPage').style.zIndex=270;openLbsTerms()" style="color:var(--pri);cursor:pointer;text-decoration:underline">위치기반서비스 이용약관</span>을 따릅니다.</p>
 <h3>1. 처리하는 개인정보와 목적</h3><table>
 <tr><th>정보</th><th>목적</th><th>수집 시점</th></tr>
-<tr><td>계정 식별값, 이메일, 닉네임, 프로필 사진 (구글 로그인 시 구글에서 받음 · 이메일 로그인 시 직접 입력)</td><td>회원 식별, 로그인 유지, 글·채팅·찜 이용</td><td>처음 로그인할 때</td></tr>
+<tr><td>이메일, 계정 식별값, 닉네임, 프로필 사진 (구글 로그인 때는 이메일과 계정 식별값만 저장하고 이름·사진은 저장하지 않습니다. 닉네임과 사진은 회원이 직접 정할 때만)</td><td>회원 식별, 로그인 유지, 글·채팅·찜 이용</td><td>처음 로그인할 때</td></tr>
 <tr><td>로그인 인증 코드 (암호화해 저장)</td><td>이메일 로그인 본인 확인</td><td>이메일 로그인을 요청할 때</td></tr>
 <tr><td>크레딧 잔액과 이용 내역</td><td>크레딧 제공, 환불</td><td>크레딧을 받거나 쓸 때</td></tr>
 <tr><td>구글 플레이 구독·결제 기록 (주문번호, 구매 토큰, 요금제, 크레딧 수, 구독 상태·다음 결제일, 결제·환불 시각)</td><td>구독 확인, 매월 크레딧 지급, 중복 지급 방지, 환불 처리</td><td>앱에서 크레딧을 구독할 때, 그리고 구독 중 크레딧 화면을 열 때</td></tr>
@@ -929,8 +931,10 @@ a{text-decoration:none;color:inherit}
 <h3>2. 보유 기간과 파기</h3><table>
 <tr><th>정보</th><th>보유 기간</th></tr>
 <tr><td>회원 정보</td><td>탈퇴할 때까지 (탈퇴 요청 시 지체 없이 파기)</td></tr>
-<tr><td>글·사진·글 위치</td><td>회원이 삭제하거나 탈퇴할 때까지</td></tr>
-<tr><td>채팅·가격 제안·알림·찜</td><td>탈퇴할 때까지 (상대방에게 보낸 메시지는 상대방 대화방에 남을 수 있음)</td></tr>
+<tr><td>글·사진·글 위치</td><td>회원이 삭제하거나 탈퇴할 때까지. 다만 ‘거래완료·품절·영업 종료’로 바꾼 지 30일이 지난 글은 자동 파기. 시장(개인 중고거래) 글의 위치는 ‘거래완료’로 바꾸거나 180일 동안 수정·끌어올리기가 없으면 먼저 파기합니다.</td></tr>
+<tr><td>채팅</td><td>보낸 지 90일이 지난 메시지는 자동 파기하고, 90일 동안 대화가 없는 대화방도 함께 파기 (그 전에 탈퇴하면 즉시 파기)</td></tr>
+<tr><td>알림</td><td>90일이 지나면 자동 파기</td></tr>
+<tr><td>가격 제안·찜</td><td>그 글이 삭제되거나 탈퇴할 때까지</td></tr>
 <tr><td>동시통역톡 대화·번역</td><td>30일이 지나면 자동 파기. 통역방(방 이름·참여 기록)은 만든 사람이 삭제할 때까지 보관하며, 삭제하면 그 방의 대화와 함께 즉시 파기 (탈퇴 시 내가 쓴 대화와 내가 만든 통역방도 즉시 파기)</td></tr>
 <tr><td>신고 기록</td><td>신고한 날부터 1년 (분쟁 대응)</td></tr>
 <tr><td>AI 글쓰기 하루 이용 횟수</td><td>탈퇴할 때까지 (날짜별 횟수만 남기며 초안 내용은 저장하지 않음)</td></tr>
@@ -945,7 +949,7 @@ a{text-decoration:none;color:inherit}
 <h3>4. 처리 위탁과 국외 이전</h3><table>
 <tr><th>받는 자 (나라)</th><th>위탁 업무 · 이전 항목</th><th>이전 방법 · 보유 기간</th></tr>
 <tr><td>Cloudflare, Inc. (미국)</td><td>서버 운영, 데이터베이스(회원·글·채팅) 및 사진 저장, 동시통역톡 대화의 인공지능 번역과 AI 글쓰기(Workers AI) · 위 1번 정보 전체</td><td>서비스 이용 시 네트워크로 전송 · 위탁 계약 종료 또는 위 보유 기간까지</td></tr>
-<tr><td>Google LLC (미국)</td><td>구글 계정 로그인(본인 확인) · 이메일, 이름, 프로필 사진, 계정 식별값</td><td>구글 로그인을 고를 때 네트워크로 전송 · 구글 계정 정책에 따름</td></tr>
+<tr><td>Google LLC (미국)</td><td>구글 계정 로그인(본인 확인) · 이메일, 계정 식별값 (이름·사진은 저장하지 않음)</td><td>구글 로그인을 고를 때 네트워크로 전송 · 구글 계정 정책에 따름</td></tr>
 <tr><td>Google LLC (미국)</td><td>구글 플레이 인앱 구독 결제 처리 및 구독 확인 · 구매 토큰, 요금제, 주문번호 (결제 수단 정보는 구글이 직접 처리)</td><td>앱에서 구독할 때와 구독 상태를 확인할 때 네트워크로 전송 · 구글 플레이 정책에 따름</td></tr>
 <tr><td>Resend, Inc. (미국)</td><td>로그인 인증 코드 메일 발송 · 이메일 주소, 인증 코드</td><td>이메일 로그인을 요청할 때 네트워크로 전송 · 발송 후 위탁 계약에 따른 기간</td></tr>
 <tr><td>OpenStreetMap Foundation (영국)</td><td>글 등록 화면의 주소 자동 입력과 지도 표시 · 현재 위치 좌표(‘현재 위치’를 누를 때), 주소 글자, 접속 IP</td><td>이용자의 기기에서 직접 전송 · 회사는 좌표를 받지 않음 · OpenStreetMap 정책에 따름</td></tr>
@@ -969,7 +973,7 @@ a{text-decoration:none;color:inherit}
 <li>개인정보분쟁조정위원회: 1833-6972 (www.kopico.go.kr)</li>
 <li>개인정보침해신고센터: 118 (privacy.kisa.or.kr)</li>
 <li>대검찰청: 1301 (www.spo.go.kr) · 경찰청: 182 (ecrm.police.go.kr)</li></ul>
-<h3>10. 처리방침의 변경</h3><p>이 방침을 바꾸면 시행 7일 전부터 서비스 안에 알립니다. 이 방침은 2026년 10월 27일부터 시행합니다. (2026년 10월 27일 개정: 구글 플레이 월 구독 기록, AI 글쓰기, 검색어·웹 검색, 말로 검색, 주소 자동 입력(OpenStreetMap), 기기에 저장하는 정보 추가 · 2026년 10월 23일 개정: pododa 전용 계정·크레딧 도입에 따라 구글 로그인, 이메일 발송, 크레딧·환불 정보 추가)</p>
+<h3>10. 처리방침의 변경</h3><p>이 방침을 바꾸면 시행 7일 전부터 서비스 안에 알립니다. 이 방침은 2026년 10월 27일부터 시행합니다. (2026년 10월 27일 개정: 구글 로그인 이름·사진 미저장, 채팅 90일·알림 90일·거래완료 글 30일 자동 파기, 시장 글 위치 보관 단축, 구글 플레이 월 구독 기록, AI 글쓰기, 검색어·웹 검색, 말로 검색, 주소 자동 입력(OpenStreetMap), 기기에 저장하는 정보 추가 · 2026년 10월 23일 개정: pododa 전용 계정·크레딧 도입에 따라 구글 로그인, 이메일 발송, 크레딧·환불 정보 추가)</p>
   </div>
 </div>
 
@@ -3103,7 +3107,7 @@ async function wdSubmit() {
 // ===== v49 고객센터 · 사업자 정보 · 앱 정보 · 구독 관리 =====
 // 통신판매업 신고번호를 받으면 아래 '' 안에 적기만 하면 사업자 정보 · 이용약관에 함께 나와요 (예: '제2026-서울송파-0000호')
 const PD_MAIL_ORDER_NO = '';
-const PD_APP_VER = 'v59';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
+const PD_APP_VER = 'v60';   // sw.js 의 CACHE_NAME 숫자와 맞춰 올리기
 function pdFillInfo() {
   document.querySelectorAll('.pdMoNo').forEach((el) => { el.textContent = PD_MAIL_ORDER_NO || '신고 처리 중 (번호를 받으면 바로 표시해요)'; });
   document.querySelectorAll('.pdVer').forEach((el) => { el.textContent = PD_APP_VER; });
@@ -3361,7 +3365,8 @@ function shopRender() {
       + (!L ? '' : '<div class="sh-st">' + L.map((n, i) => '<button type="button" class="' + (st === i ? 'on' : '') + '" onclick="shopStatus(' + p.id + ',' + i + ')">' + n + '</button>').join('') + '</div>')
       + '<div class="sh-act"><button type="button" onclick="shopBump(' + p.id + ')"' + (p.bump_ok ? '' : ' disabled') + '>' + bumpLabel + '</button><button type="button" onclick="shopEditOpen(' + p.id + ')">✏️ 수정</button><button type="button" class="del" onclick="shopDelete(' + p.id + ')">🗑 삭제</button></div></div>';
   }).join('');
-  h += '<div class="sh-tip"><b>💡 ' + SHOP_NAME[shopCat] + ' 잘 되는 팁</b><br>' + SHOP_TIPS[shopCat].join('<br>') + '</div><div style="height:40px"></div>';
+  h += '<div class="sh-tip"><b>💡 ' + SHOP_NAME[shopCat] + ' 잘 되는 팁</b><br>' + SHOP_TIPS[shopCat].join('<br>')
+    + (L ? '<br><span style="color:var(--gray)">🔒 ‘' + L[2] + '’로 바꾼 글은 30일 뒤 자동으로 지워져요.' + (shopCat === 0 ? ' 글 위치는 ‘거래완료’로 바꾸면 바로 지워져요.' : '') + '</span>' : '') + '</div><div style="height:40px"></div>';
   body.innerHTML = h;
 }
 function shopLeft(iso) {
