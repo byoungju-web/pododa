@@ -34,7 +34,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # 기본값은 옛 'tools' 꾸러미까지 깔려고 해서 실패함("Failed to find package 'tools'") → 필요한 것만 깔게 지정
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - uses: actions/setup-node@v4
         with:
@@ -80,6 +83,20 @@ jobs:
       - name: 안드로이드 프로젝트 만들기
         working-directory: build
         run: bubblewrap update --skipVersionUpgrade
+
+      # 구글 플레이 요구: 2026-08-31 부터(연장 시 2026-11-01) 새 앱·업데이트는 대상 API 36(Android 16) 이상
+      # Bubblewrap 이 만든 값이 36보다 낮으면 36으로 올림 (이미 36 이상이면 그대로). 바꾸기 전·후 값을 로그에 남김
+      - name: 대상 API 수준 36 이상으로 맞추기
+        working-directory: build
+        run: |
+          set -e
+          F=app/build.gradle; [ -f "$F" ] || F=app/build.gradle.kts
+          echo "바꾸기 전:"; grep -nE "compileSdk|targetSdk" "$F" || true
+          perl -pi -e 's/((?:compileSdkVersion|compileSdk|targetSdkVersion|targetSdk)\s*=?\s*)(\d+)/$1.($2<36?36:$2)/ge' "$F"
+          echo "바꾼 뒤:"; grep -nE "compileSdk|targetSdk" "$F"
+          if ! grep -qE "targetSdk(Version)?\s*=?\s*(3[6-9]|[4-9][0-9])" "$F"; then echo "::error::targetSdk 를 36 이상으로 맞추지 못했어요"; exit 1; fi
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-36" > /dev/null
 
       - name: 앱 파일(AAB) 만들고 업로드 키로 서명
         working-directory: build
